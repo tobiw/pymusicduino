@@ -43,6 +43,9 @@ class ModHostClient:
         Plugin.MOD = self
         self.remove_all_plugins()
 
+    def close(self):
+        self._socket.close()
+
     def list_plugins(self):
         plugins = {}
         output = subprocess.check_output(['lv2ls'])
@@ -181,7 +184,7 @@ class ModHostClient:
         parameters = []
         for section in parameter_sections:
             if '#ControlPort' not in section[1]:  # skip non-control ports
-	        continue
+                continue
 
             # This port is a control port, start parsing all lines
             port_info = {}
