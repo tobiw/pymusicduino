@@ -5,26 +5,25 @@ from subprocess import call
 from mod_host import ModHostClient
 
 
+c = ModHostClient()
+
+
 def preset_cb(preset_number):
     print('Loading preset {} in mod-host ...'.format(preset_number))
     if preset_number == 0:
-        c = ModHostClient()
-        info = m.get_plugin_info('MultiChorus')
+        info = c.get_plugin_info('MultiChorus')
         for p in info['parameters']:
             print('{}: {} to {}'.format(p['symbol'], p['minimum'], p['maximum']))
         c.load_preset_string('MultiChorus[0 0 0 0]')
-        print(m.get_all_parameters(0, info))
+        print(c.get_all_parameters(0, info))
         c.set_parameter(0, 'mod_rate', 1.8)
-        c.close()
     elif preset_number == 1:
-        c = ModHostClient()
-        info = m.get_plugin_info('Reverb')
+        info = c.get_plugin_info('Reverb')
         for p in info['parameters']:
             print('{}: {} to {}'.format(p['symbol'], p['minimum'], p['maximum']))
         c.load_preset_string('Compressor[0 0],Reverb[0 0 0 0]')
-        print(m.get_all_parameters(1, info))
+        print(c.get_all_parameters(1, info))
         c.set_parameter(1, 'room_size', 3)
-        c.close()
 
 
 def looper_cb(enable):
