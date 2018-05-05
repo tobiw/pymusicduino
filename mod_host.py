@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import socket
 import subprocess
@@ -16,8 +16,9 @@ class ModHostSocket:
     def send(self, c):
         c += '\0'
         print('sending command: "{!s}"'.format(c))
-        self._socket.send(c)
-        resp = self._socket.recv(1024).strip().replace('\0', '').split()[1:]
+        self._socket.send(c.encode('utf-8'))
+        resp = self._socket.recv(1024)
+        resp = resp.strip().replace(b'\0', b'').split()[1:]
         print(resp)
         if resp and int(resp[0]) < 0:  # error
             raise RuntimeError('Response from command "{}" was {}'.format(c, str(resp)))
@@ -49,10 +50,10 @@ class ModHostClient:
     def list_plugins(self):
         plugins = {}
         output = subprocess.check_output(['lv2ls'])
-        for l in output.splitlines():
+        for l in [x.decode('utf-8') for x in output.splitlines()]:
             name = l.rsplit('/', 1)[-1]
             if '#' in name:
-                name = name.split('#')[0]
+                name = name.split('#', 1)[0]
             plugins[name] = l
         return plugins
 
@@ -73,7 +74,7 @@ class ModHostClient:
             j = 1
             while (i + j) < len(lines):
                 next_line = lines[i+j]
-                if next_line.startswith('   '):  # next line is a connected inport
+                if next_line.startswith(b'   '):  # next line is a connected inport
                     connected_ports.append(next_line.strip())
                 else:  # hit the next outport
                     break
@@ -91,8 +92,8 @@ class ModHostClient:
                 self._socket.send('disconnect {} {}'.format(outport, inport))
 
     def remove_all_plugins(self):
-        for line in [l for l in self._get_jack_connections_lines() if l.startswith('effect_')]:
-            i = line.split(':', 1)[0].split('_', 1)[-1]
+        for line in [l for l in self._get_jack_connections_lines() if l.startswith(b'effect_')]:
+            i = line.split(b':', 1)[0].split(b'_', 1)[-1]
             print('Removing effect {}'.format(i))
             self._socket.send('remove {}'.format(i))
         self._installed_plugins = []
@@ -159,8 +160,8 @@ class ModHostClient:
         lines = subprocess.check_output(['lv2info', plugin_url]).splitlines()
         info = {
             'url': lines[0],
-            'name': lines[2].split(':', 1)[-1].strip(),
-            'class': lines[3].split(':', 1)[-1].strip(),
+            'name': lines[2].split(b':', 1)[-1].strip(),
+            'class': lines[3].split(b':', 1)[-1].strip(),
             'parameters': None
         }
 
