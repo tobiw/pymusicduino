@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
 import time
+from pythonosc import udp_client
 from rtmidi import RtMidiIn, MidiMessage
 from subprocess import call
-from mod_host import ModHostClient
-
-
-c = ModHostClient()
 
 
 def preset_cb(preset_number):
@@ -43,45 +40,64 @@ def looper_cb(enable):
         call(['/root/guitar.sh', 'start'])
 
 
-looper_enabled = False
+class MidiToOsc:
+    """
+    Translates MIDI messages from a controller to OSC messages for the main program.
 
+    Sets up MIDI and OSC connects, then everything is handled through a callback.
+    Uses ALSA/RtMidi to receive MIDI messages. Assumes the OSC server is on localhost at the default port.
+    """
+    def __init__(self, midi_controller):
+        self._midi = RtMidiIn()
+        self._connect_midi(midi_controller)
+        self._midi.setCallback(self._midi_message_cb)
+        self._osc_client = udp_client.SimpleUDPClient('127.0.0.1', 5005)
+        self._osc_client.send_message('/ping', '1')
 
-def midi_message_cb(msg):
-    global looper_enabled
+        # This part needs to be configurable per mode/user config/DIP switches/etc
+        self._cc_osc_translation = {
+            10: '/preset/1',
+            11: '/preset/2',
+            12: '/preset/3',
+            13: '/preset/4',
+            14: '/looper1',
+            15: '/looper2',
+            16: '/looper3',
+            17: '/looper4'
+        }
 
-    channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()
-    print('{} -> {}'.format(cc, '1' if value > 0 else '0'))
+    def _connect_midi(self, midi_controller):
+        port_names = [self._midi.getPortName(i) for i in range(self._midi.getPortCount())]
+        print(port_names)
 
-    # Translate MIDI channel/cc number to specific callbacks
-    # TODO: Translate to OSC messages
-    if value == 127:
-        if 60 <= cc <= 61:
-            preset_cb(cc - 60)
-        elif cc  == 65:
-            looper_enabled = not looper_enabled
-            looper_cb(enable=looper_enabled)
+        # Find the MIDI port the Arduino Micro is connected to
+        arduino_port = None
+        for i, p in enumerate(port_names):
+            if p.startswith(midi_controller):
+                arduino_port = i
+                break
+        assert arduino_port is not None
+        self._midi.openPort(arduino_port)
+
+    def _midi_message_cb(self, msg):
+        channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()
+        osc_topic = self._cc_osc_translation.get(cc, None)
+        print('{} -> {} -> {}'.format(cc, '1' if value > 0 else '0', str(osc_topic)))
+        self._osc_client.send_message(osc_topic, '1')
+        print('sent.')
+
+        # Translate MIDI channel/cc number to specific callbacks
+        # TODO: Translate to OSC messages
+        #if value == 127:
+            #if 60 <= cc <= 61:
+                #preset_cb(cc - 60)
+            #elif cc  == 65:
+                #looper_enabled = not looper_enabled
+                #looper_cb(enable=looper_enabled)
 
 
 def main():
-    # Create MIDI receiver
-    m = RtMidiIn()
-    
-    port_names = [m.getPortName(i) for i in range(m.getPortCount())]
-    print(port_names)
-    
-    # Find the MIDI port the Arduino Micro is connected to
-    arduino_port = None
-    for i, p in enumerate(port_names):
-        if p.startswith('Arduino Micro'):
-            arduino_port = i
-            break
-    
-    assert arduino_port is not None
-    
-    # Register MIDI message callback
-    m.openPort(arduino_port)
-    m.setCallback(midi_message_cb)
-
+    midi_osc = MidiToOsc('Arduino Micro')
     while True:
         pass
 
