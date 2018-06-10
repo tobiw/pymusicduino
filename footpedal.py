@@ -58,10 +58,10 @@ class MidiToOsc:
             11: '/preset/2',
             12: '/preset/3',
             13: '/preset/4',
-            14: '/looper1',
-            15: '/looper2',
-            16: '/looper3',
-            17: '/looper4'
+            14: '/looper/1',
+            15: '/looper/undo',
+            16: '/looper/record',
+            17: '/looper/overdub'
         }
 
     def _connect_midi(self, midi_controller):
@@ -83,15 +83,6 @@ class MidiToOsc:
         print('{} -> {} -> {}'.format(cc, '1' if value > 0 else '0', str(osc_topic)))
         self._osc_client.send_message(osc_topic, '1')
         print('sent.')
-
-        # Translate MIDI channel/cc number to specific callbacks
-        # TODO: Translate to OSC messages
-        #if value == 127:
-            #if 60 <= cc <= 61:
-                #preset_cb(cc - 60)
-            #elif cc  == 65:
-                #looper_enabled = not looper_enabled
-                #looper_cb(enable=looper_enabled)
 
 
 def main():
