@@ -1,7 +1,6 @@
 from threading import Thread
 from pythonosc import dispatcher, osc_server, udp_client
 
-run = True
 
 class OscServer(object):
     def __init__(self, use_threading=True):

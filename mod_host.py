@@ -6,6 +6,9 @@ import time
 
 
 class ModHostSocket:
+    """
+    Socket connection to mod-host instance (UDP port 5555).
+    """
     def __init__(self):
         self._socket = socket.socket()
 
@@ -14,7 +17,7 @@ class ModHostSocket:
         self._socket.settimeout(0.5)
 
     def send(self, c):
-        c += '\0'
+        c += '\0'  # required for mod-host to recognize the command
         print('sending command: "{!s}"'.format(c))
         self._socket.send(c.encode('utf-8'))
         resp = self._socket.recv(1024)
@@ -36,13 +39,16 @@ class Plugin:
 
 
 class ModHostClient:
+    """
+    A client program making use of the socket connection to mod-host to control and query it.
+    """
     def __init__(self):
         self._socket = ModHostSocket()
         self._socket.connect()
         self._available_plugins = self.list_plugins()
         self._installed_plugins = []
         Plugin.MOD = self
-        self.remove_all_plugins()
+        self.remove_all_plugins()  # cleanup mod-host when starting client
 
     def close(self):
         self._socket.close()

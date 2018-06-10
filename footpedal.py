@@ -52,6 +52,8 @@ def midi_message_cb(msg):
     channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()
     print('{} -> {}'.format(cc, '1' if value > 0 else '0'))
 
+    # Translate MIDI channel/cc number to specific callbacks
+    # TODO: Translate to OSC messages
     if value == 127:
         if 60 <= cc <= 61:
             preset_cb(cc - 60)
@@ -61,11 +63,13 @@ def midi_message_cb(msg):
 
 
 def main():
+    # Create MIDI receiver
     m = RtMidiIn()
     
     port_names = [m.getPortName(i) for i in range(m.getPortCount())]
     print(port_names)
     
+    # Find the MIDI port the Arduino Micro is connected to
     arduino_port = None
     for i, p in enumerate(port_names):
         if p.startswith('Arduino Micro'):
@@ -74,6 +78,7 @@ def main():
     
     assert arduino_port is not None
     
+    # Register MIDI message callback
     m.openPort(arduino_port)
     m.setCallback(midi_message_cb)
 
