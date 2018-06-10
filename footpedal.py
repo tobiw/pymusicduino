@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import time
 from pythonosc import udp_client
 from rtmidi import RtMidiIn, MidiMessage

@@ -42,19 +42,19 @@ class FootpedalOscServer(OscServer):
 
         self._client = udp_client.SimpleUDPClient('127.0.0.1', 9951)
 
-    def cb_preset(self, uri):
+    def cb_preset(self, uri, msg=None):
         preset_id = int(uri.rsplit('/', 1)[-1])
         print("PRESET {:d}".format(preset_id))
         # TODO: tell mod-host to load preset x
 
-    def cb_slider(self, uri):
+    def cb_slider(self, uri, msg=None):
         _, slider_id, value = uri.rsplit('/', 2)
         slider_id = int(slider_id)
         value = float(value)
         print("SLIDER {:d} = {:f}".format(slider_id, value))
         # TODO: tell mod-host to set param x
 
-    def cb_looper(self, uri):
+    def cb_looper(self, uri, msg=None):
         _, command = uri.rsplit('/', 1)
         if command in ['undo', 'record', 'overdub']:
             self._client.send_message("/sl/0/hit", command)
