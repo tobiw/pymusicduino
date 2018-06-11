@@ -1,3 +1,5 @@
+import time
+
 from footpedal import MidiToOsc
 from osc_server import FootpedalOscServer
 
@@ -58,14 +60,16 @@ class MusicBox:
             print("Invalid sooperlooper command {:s}".format(command))
 
     def cb_tap(self, uri, msg=None):
-        tap_tempo = msg if msg else int(uri.rsplit('/', 1)[-1])
-        if tap_tempo == 1:
+        tap_tempo = msg if msg else uri.rsplit('/', 1)[-1]
+        tap_tempo = int(tap_tempo)
+        print("received tap value {}".format(str(tap_tempo)))
+        if tap_tempo < 30:
             # Calculate tap tempo
             now = time.time()
             if self._last_tap_time == 0:
                 self._tap_tempo = 0
             else:
-                self._tap_tempo = 60 / (now - self._last_tap)
+                self._tap_tempo = 60 / (now - self._last_tap_time)
                 print("TAP TEMPO: {:d}".format(int(self._tap_tempo)))
             self._last_tap_time = now
         else:

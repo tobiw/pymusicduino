@@ -73,7 +73,7 @@ class MidiToOsc:
             10: '/preset/1', 11: '/preset/2', 12: '/preset/3', 13: '/preset/4',
             14: '/stomp/1/enable', 15: '/stomp/2/enable', 16: '/stomp/3/enable', 17: '/stomp/4/enable',
             20: '/stomp/1/enable', 21: '/stomp/2/enable', 22: '/stomp/3/enable', 23: '/stomp/4/enable',
-            24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/tap',
+            24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/tap/1',
             30: '/mode/preset', 31: '/mode/stomp', 32: '/mode/looper', 33: '/mode/tuner',
             34: '/stomp/1/select', 35: '/stomp/2/select', 36: '/stomp/3/select', 37: '/stomp/4/select',
             40: '/looper/undo', 41: '/looper/record', 42: '/looper/overdub', 43: '',
