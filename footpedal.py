@@ -68,12 +68,12 @@ class MidiToOsc:
         # 5) Stomp1En[14]  Stomp5En[24] Stomp1Sel[34]
         # 6) Stomp2En[15]  Stomp6En[25] Stomp2Sel[35]
         # 7) Stomp3En[16]  Stomp7En[26] Stomp3Sel[36]
-        # 8) Stomp4En[17]  Stomp8En[27] Stomp4Sel[37]
+        # 8) Stomp4En[17]  TapTempo[27] Stomp4Sel[37]
         self._cc_osc_translation = {
             10: '/preset/1', 11: '/preset/2', 12: '/preset/3', 13: '/preset/4',
             14: '/stomp/1/enable', 15: '/stomp/2/enable', 16: '/stomp/3/enable', 17: '/stomp/4/enable',
             20: '/stomp/1/enable', 21: '/stomp/2/enable', 22: '/stomp/3/enable', 23: '/stomp/4/enable',
-            24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/stomp/8/enable',
+            24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/tap',
             30: '/mode/preset', 31: '/mode/stomp', 32: '/mode/looper', 33: '/mode/tuner',
             34: '/stomp/1/select', 35: '/stomp/2/select', 36: '/stomp/3/select', 37: '/stomp/4/select',
             40: '/looper/undo', 41: '/looper/record', 42: '/looper/overdub', 43: '',
@@ -100,13 +100,3 @@ class MidiToOsc:
         if osc_topic:
             self._osc_client.send_message(osc_topic, '1')
             print('sent.')
-
-
-def main():
-    midi_osc = MidiToOsc('Arduino Micro')
-    while True:
-        pass
-
-
-if __name__ == '__main__':
-    main()

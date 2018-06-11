@@ -1,3 +1,4 @@
+import time
 from threading import Thread
 from pythonosc import dispatcher, osc_server, udp_client
 
@@ -38,43 +39,26 @@ class FootpedalOscServer(OscServer):
     Central receiver for OSC messages which can control the program itself, mod-host, sooperlooper.
 
     Messages (/bank/1 == /bank with message "1"):
-    - /bank/<N>: loads a preset bank
+    - /mode/preset: activates preset mode (load presets, some stompbox control)
+    - /mode/stomp: activates stompbox mode (control over 8 stompboxes, no presets)
+    - /mode/looper: activates looper mode (all footswitches used for looper control)
+    - /mode/tuner: mute sound and display tuner
     - /preset/<N>: loads a preset (mod-host plugins + optional sooperlooper instance)
-    - /stompbox/<N>: selects/enables a stompbox
+    - /stompbox/<N>/enable: enables/disables (toggles) a stompbox
+    - /stompbox/<N>/select: selects a stompbox for editing
     - /looper/<undo|record|overdub>: passed through to sooperlooper instance
     """
-    def __init__(self):
+    def __init__(self, cb_mode, cb_preset, cb_stomp_enable, cb_stomp_select, cb_looper, cb_tap, cb_slider):
         OscServer.__init__(self)
-        self.register_uri("/preset/*", self.cb_preset)
-        self.register_uri("/slider/?/*", self.cb_slider)
-        self.register_uri("/looper/*", self.cb_looper)
+        self.register_uri("/mode/*", cb_mode)  # modes as string ("preset", etc)
+        self.register_uri("/preset/*", cb_preset)  # preset number (1-4)
+        self.register_uri("/stomp/?/enable", cb_stomp_enable)  # enable stompbox (1-8)
+        self.register_uri("/stomp/?/select", cb_stomp_select)  # select stompbox for editing (1-8)
+        self.register_uri("/looper/*", cb_looper)  # looper commands ("undo", "record", etc)
+        self.register_uri("/tap/*", cb_tap)  # Send a tap (1) or tap tempo value (30-300)
+
+        # Extra inputs (not on pedal board; e.g. OSC app)
+        self.register_uri("/slider/?/*", cb_slider)  # slider value (0-1023)
 
         # OSC connection to sooperlooper
         self._looper_osc = udp_client.SimpleUDPClient('127.0.0.1', 9951)
-
-    def cb_preset(self, uri, msg=None):
-        preset_id = int(uri.rsplit('/', 1)[-1])
-        print("PRESET {:d}".format(preset_id))
-        # TODO: tell mod-host to load preset x
-        # TODO: if preset contains looper: start sooperlooper
-
-    def cb_slider(self, uri, msg=None):
-        _, slider_id, value = uri.rsplit('/', 2)
-        slider_id = int(slider_id)
-        value = float(value)
-        print("SLIDER {:d} = {:f}".format(slider_id, value))
-        # TODO: tell mod-host to set param x
-
-    def cb_looper(self, uri, msg=None):
-        _, command = uri.rsplit('/', 1)
-        if command in ['undo', 'record', 'overdub']:
-            self._looper_osc.send_message("/sl/0/hit", command)
-            print("Sent /sl/0/hit s:{:s} to sooperlooper".format(command))
-        else:
-            print("Invalid sooperlooper command {:s}".format(command))
-
-
-if __name__ == '__main__':
-    s = FootpedalOscServer()
-    s.start()
-    s._thread.join()
