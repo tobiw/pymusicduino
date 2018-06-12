@@ -5,9 +5,9 @@ from osc_server import FootpedalOscServer
 
 
 class MusicBox:
-    MODE_PRESET = 'preset',
-    MODE_STOMP = 'stomp',
-    MODE_LOOPER = 'looper',
+    MODE_PRESET = 'preset'
+    MODE_STOMP = 'stomp'
+    MODE_LOOPER = 'looper'
     MODE_TUNER = 'tuner'
 
     def __init__(self):

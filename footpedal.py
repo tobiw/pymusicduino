@@ -1,6 +1,6 @@
 import time
 from pythonosc import udp_client
-from rtmidi import RtMidiIn, MidiMessage
+from rtmidi import RtMidiIn, RtMidiOut, MidiMessage
 from subprocess import call
 
 
@@ -46,9 +46,9 @@ class MidiToOsc:
     Uses ALSA/RtMidi to receive MIDI messages. Assumes the OSC server is on localhost at the default port.
     """
     def __init__(self, midi_controller):
-        self._midi = RtMidiIn()
+        self._midi_in, self._midi_out = RtMidiIn(), RtMidiOut()
         self._connect_midi(midi_controller)
-        self._midi.setCallback(self._midi_message_cb)
+        self._midi_in.setCallback(self._midi_message_cb)
         self._osc_client = udp_client.SimpleUDPClient('127.0.0.1', 5005)
         self._osc_client.send_message('/ping', '1')
 
@@ -58,9 +58,9 @@ class MidiToOsc:
         # | 5  6  7  8 |
         # | 1  2  3  4 |
         # --------------
-        #    Press         Press         Press         Long        
-        #    Preset        Stomp         Looper        Press       
-        #    Mode          Mode          Mode                      
+        #    Press         Press         Press         Long
+        #    Preset        Stomp         Looper        Press
+        #    Mode          Mode          Mode
         # 1) Preset 1[10]  Stomp1En[20]  Undo[30]     PresetMod[40]
         # 2) Preset 2[11]  Stomp2En[21]  Record[31]   StompMode[41]
         # 3) Preset 3[12]  Stomp3En[22]  Overdub[32]  LooperMod[42]
@@ -81,17 +81,30 @@ class MidiToOsc:
         }
 
     def _connect_midi(self, midi_controller):
-        port_names = [self._midi.getPortName(i) for i in range(self._midi.getPortCount())]
-        print(port_names)
+        def find_port(ports, name):
+            for i, p in enumerate(ports):
+                if p.startswith(name):
+                    return i
+            return None
 
-        # Find the MIDI port the Arduino Micro is connected to
-        arduino_port = None
-        for i, p in enumerate(port_names):
-            if p.startswith(midi_controller):
-                arduino_port = i
-                break
+        # Find the MIDI In port the Arduino Micro is connected to
+        arduino_port = find_port([self._midi_in.getPortName(i) for i in range(self._midi_in.getPortCount())], midi_controller)
         assert arduino_port is not None
-        self._midi.openPort(arduino_port)
+        print("MidiIn connecting to {}".format(arduino_port))
+        self._midi_in.openPort(arduino_port)
+
+        # Find the MIDI Out port the Arduino Micro is connected to
+        arduino_port = find_port([self._midi_out.getPortName(i) for i in range(self._midi_out.getPortCount())], midi_controller)
+        assert arduino_port is not None
+        print("MidiOut connecting to {}".format(arduino_port))
+        self._midi_out.openPort(arduino_port)
+
+        # Send hello
+        msg = MidiMessage()
+        msg.setChannel(1)
+        msg.setNoteNumber(60)
+        msg.setVelocity(100)
+        self._midi_out.sendMessage(msg)
 
     def _midi_message_cb(self, msg):
         channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()
