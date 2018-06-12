@@ -58,26 +58,26 @@ class MidiToOsc:
         # | 5  6  7  8 |
         # | 1  2  3  4 |
         # --------------
-        #    Press         Press         Long         Press
-        #    Preset        Stomp         Press        Looper
-        #    Mode          Mode                       Mode
-        # 1) Preset 1[10]  Stomp1En[20] PresetMod[30] Undo[40]
-        # 2) Preset 2[11]  Stomp2En[21] StompMode[31] Record[41]
-        # 3) Preset 3[12]  Stomp3En[22] LooperMod[32] Overdub[42]
-        # 4) Preset 4[13]  Stomp4En[23] Tuner[33]
-        # 5) Stomp1En[14]  Stomp5En[24] Stomp1Sel[34]
-        # 6) Stomp2En[15]  Stomp6En[25] Stomp2Sel[35]
-        # 7) Stomp3En[16]  Stomp7En[26] Stomp3Sel[36]
-        # 8) Stomp4En[17]  TapTempo[27] Stomp4Sel[37]
+        #    Press         Press         Press         Long        
+        #    Preset        Stomp         Looper        Press       
+        #    Mode          Mode          Mode                      
+        # 1) Preset 1[10]  Stomp1En[20]  Undo[30]     PresetMod[40]
+        # 2) Preset 2[11]  Stomp2En[21]  Record[31]   StompMode[41]
+        # 3) Preset 3[12]  Stomp3En[22]  Overdub[32]  LooperMod[42]
+        # 4) Preset 4[13]  Stomp4En[23]               Tuner[43]
+        # 5) Stomp1En[14]  Stomp5En[24]               Stomp1Sel[44]
+        # 6) Stomp2En[15]  Stomp6En[25]               Stomp2Sel[45]
+        # 7) Stomp3En[16]  Stomp7En[26]               Stomp3Sel[46]
+        # 8) Stomp4En[17]  TapTempo[27]               Stomp4Sel[47]
         self._cc_osc_translation = {
             10: '/preset/1', 11: '/preset/2', 12: '/preset/3', 13: '/preset/4',
             14: '/stomp/1/enable', 15: '/stomp/2/enable', 16: '/stomp/3/enable', 17: '/stomp/4/enable',
             20: '/stomp/1/enable', 21: '/stomp/2/enable', 22: '/stomp/3/enable', 23: '/stomp/4/enable',
             24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/tap/1',
-            30: '/mode/preset', 31: '/mode/stomp', 32: '/mode/looper', 33: '/mode/tuner',
-            34: '/stomp/1/select', 35: '/stomp/2/select', 36: '/stomp/3/select', 37: '/stomp/4/select',
-            40: '/looper/undo', 41: '/looper/record', 42: '/looper/overdub', 43: '',
-            44: '', 45: '', 46: '', 47: ''
+            30: '/looper/undo', 31: '/looper/record', 32: '/looper/overdub', 33: '',
+            34: '', 35: '', 36: '', 37: '',
+            40: '/mode/preset', 41: '/mode/stomp', 42: '/mode/looper', 43: '/mode/tuner',
+            44: '/stomp/1/select', 45: '/stomp/2/select', 46: '/stomp/3/select', 47: '/stomp/4/select'
         }
 
     def _connect_midi(self, midi_controller):
