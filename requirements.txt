@@ -1,5 +1,6 @@
 cffi
 JACK-Client
 python-osc
+PyYAML
 rtmidi
 setuptools
