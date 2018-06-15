@@ -48,12 +48,10 @@ class MusicBox:
         self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset,
                                               self.cb_stomp_enable, self.cb_stomp_select,
                                               self.cb_looper, self.cb_tap, self.cb_slider)
-        self._pedalboard_presets = [Graph(create_graph_from_config('preset0{:d}.yaml'.format(i))) for i in [1]]
 
     def run(self):
         self._osc_server.start()
         self._osc_server._thread.join()
-        print(str(self._pedalboard_presets))
 
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
@@ -67,7 +65,12 @@ class MusicBox:
         preset_id = int(uri.rsplit('/', 1)[-1])
         assert 0 < preset_id < 100
         print("PRESET {:d}".format(preset_id))
-        # TODO: tell mod-host to load preset x
+        self._pedalboard = create_graph_from_config('preset0{:d}.yaml'.format(preset_id))
+        # TODO: tell mod-host to load graph: go through graph nodes and tell mod-host, then go through connections (VIA ModHostClient!)
+        for node in self._pedalboard.nodes:
+            print("mod-host: add effect " + str(node))
+        for node in self._pedalboard.nodes:
+            print("mod-host: add connection {!s} -> [{!s}] -> {!s}".format(str(self._pedalboard.get_incoming_edges(node)), str(node), str(self._pedalboard.get_outgoing_edges(node))))
         # TODO: if preset contains looper: start sooperlooper
 
     def cb_stomp_enable(self, uri, msg=None):

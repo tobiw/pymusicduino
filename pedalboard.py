@@ -46,7 +46,9 @@ class Graph:
     2
     """
     def __init__(self, nodes):
+        print("nodes: " + str(nodes))
         self._graph = OrderedDict.fromkeys(nodes, value=[])
+        print("graph: " + str(self._graph))
 
     def draw(self):
         lines = []

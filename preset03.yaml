@@ -1,0 +1,19 @@
+preset:
+  author: Tobi Wulff
+  name: Room Tone
+  global_parameters:
+    volume: 100
+    dry_wet: 50
+  stompboxes:
+    -
+      lv2: ir
+      parameters: [ 1, 5, 5, 3 ]
+      connections: [ 2 ]
+    -
+      lv2: echo
+      parameters: [ 2, 2, 4 ]
+      connections: [ 1 ]
+    -
+      lv2: eq3
+      parameters: [ 3, 2, 3 ]
+      connections: [ ]
