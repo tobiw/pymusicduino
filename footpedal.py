@@ -1,7 +1,7 @@
+import subprocess
 import time
 from pythonosc import udp_client
 from rtmidi import RtMidiIn, RtMidiOut, MidiMessage
-from subprocess import call
 
 
 def preset_cb(preset_number):
@@ -28,14 +28,14 @@ def preset_cb(preset_number):
 def looper_cb(enable):
     if enable:
         print('Loading the looper ...')
-        call(['/root/guitar.sh', 'stop'])
+        subprocess.call(['/root/guitar.sh', 'stop'])
         time.sleep(1)
-        call(['/root/looper.sh'])
+        subprocess.call(['/root/looper.sh'])
     else:
         print('Killing the looper.')
-        call(['killall', 'sooperlooper'])
+        subprocess.call(['killall', 'sooperlooper'])
         time.sleep(1)
-        call(['/root/guitar.sh', 'start'])
+        subprocess.call(['/root/guitar.sh', 'start'])
 
 
 class MidiToOsc:
@@ -99,12 +99,8 @@ class MidiToOsc:
         print("MidiOut connecting to {}".format(arduino_port))
         self._midi_out.openPort(arduino_port)
 
-        # Send hello
-        msg = MidiMessage()
-        msg.setChannel(1)
-        msg.setNoteNumber(60)
-        msg.setVelocity(100)
-        self._midi_out.sendMessage(msg)
+        # Send initial mode
+        subprocess.call(['./midisend', '0', '0'])
 
     def _midi_message_cb(self, msg):
         channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()

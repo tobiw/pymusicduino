@@ -1,3 +1,5 @@
+import enum
+import subprocess
 import time
 import yaml
 
@@ -31,14 +33,18 @@ def create_graph_from_config(filename):
     return graph
 
 
+class Mode(enum.Enum):
+    PRESET = 0
+    STOMP = 1
+    LOOPER = 2
+    METRONOME = 3
+
+
 class MusicBox:
-    MODE_PRESET = 'preset'
-    MODE_STOMP = 'stomp'
-    MODE_LOOPER = 'looper'
-    MODE_TUNER = 'tuner'
+    OSC_MODES = { 'preset': Mode.PRESET, 'stomp': Mode.STOMP, 'looper': Mode.LOOPER, 'metronome': Mode.METRONOME }
 
     def __init__(self):
-        self._current_mode = self.MODE_PRESET
+        self._current_mode = Mode.PRESET
         self._selected_stompbox = 0  # 0 = global parameters, 1-8 = actual stompboxes
         self._last_tap_time = 0
         self._tap_tempo = 0
@@ -56,9 +62,10 @@ class MusicBox:
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
         mode = uri.rsplit('/', 1)[-1]
-        assert mode in [self.MODE_PRESET, self.MODE_STOMP, self.MODE_LOOPER, self.MODE_TUNER]
-        print("MODE {}".format(mode))
-        self._current_mode = mode
+        assert mode in self.OSC_MODES.keys()
+        print("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
+        self._current_mode = self.OSC_MODES[mode]
+        subprocess.call(['./midisend', '0', str(self._current_mode.value)])
 
     def cb_preset(self, uri, msg=None):
         """Handle incoming /preset/<N> OSC message"""
