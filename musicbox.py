@@ -98,7 +98,7 @@ class MusicBox:
         """Handle incoming /looper OSC messages to be proxied to sooperlooper"""
         _, command = uri.rsplit('/', 1)
         if command in ['undo', 'record', 'overdub']:
-            self._looper_osc.send_message("/sl/0/hit", command)
+            self._osc_server.send_looper_osc("/sl/0/hit", command)
             print("Sent /sl/0/hit s:{:s} to sooperlooper".format(command))
         else:
             print("Invalid sooperlooper command {:s}".format(command))

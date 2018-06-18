@@ -62,3 +62,6 @@ class FootpedalOscServer(OscServer):
 
         # OSC connection to sooperlooper
         self._looper_osc = udp_client.SimpleUDPClient('127.0.0.1', 9951)
+
+    def send_looper_osc(self, msg, value='1'):
+        self._looper_osc.send_message(msg, value)
