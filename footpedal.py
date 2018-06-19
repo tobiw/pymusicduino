@@ -1,41 +1,5 @@
-import subprocess
-import time
 from pythonosc import udp_client
-from rtmidi import RtMidiIn, RtMidiOut, MidiMessage
-
-
-def preset_cb(preset_number):
-    print('Loading preset {} in mod-host ...'.format(preset_number))
-    if preset_number == 0:
-        info = c.get_plugin_info('MultiChorus')
-        for p in info['parameters']:
-            print('{}: {} to {}'.format(p['symbol'], p['minimum'], p['maximum']))
-        c.remove_all_plugins()
-        c.load_preset_string('MultiChorus[0 0 0 0]')
-        print(c.get_all_parameters(0, info))
-        c.set_parameter(0, 'mod_rate', 1.8)
-    elif preset_number == 1:
-        info = c.get_plugin_info('Reverb')
-        for p in info['parameters']:
-            print('{}: {} to {}'.format(p['symbol'], p['minimum'], p['maximum']))
-        c.remove_all_plugins()
-        c.load_preset_string('Compressor[0 0],Reverb[0 0 0 0]')
-        print(c.get_all_parameters(1, info))
-        c.set_parameter(1, 'room_size', 3)
-    print(subprocess.check_output(['jack_lsp', '-c']))
-
-
-def looper_cb(enable):
-    if enable:
-        print('Loading the looper ...')
-        subprocess.call(['/root/guitar.sh', 'stop'])
-        time.sleep(1)
-        subprocess.call(['/root/looper.sh'])
-    else:
-        print('Killing the looper.')
-        subprocess.call(['killall', 'sooperlooper'])
-        time.sleep(1)
-        subprocess.call(['/root/guitar.sh', 'start'])
+from rtmidi import RtMidiIn, RtMidiOut
 
 
 class MidiToOsc:
@@ -98,9 +62,6 @@ class MidiToOsc:
         assert arduino_port is not None
         print("MidiOut connecting to {}".format(arduino_port))
         self._midi_out.openPort(arduino_port)
-
-        # Send initial mode
-        subprocess.call(['./midisend', '0', '0'])
 
     def _midi_message_cb(self, msg):
         channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()

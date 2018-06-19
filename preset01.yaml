@@ -1,15 +1,11 @@
 preset:
   author: Tobi Wulff
-  name: Modulations
+  name: Distortion
   global_parameters:
     volume: 100
     dry_wet: 50
   stompboxes:
     -
-      lv2: delay
-      parameters: [ 1, 5, 5, 3 ]
-      connections: [ 1 ]
-    -
-      lv2: chorus
-      parameters: [ 2, 2, 4 ]
+      lv2: "http://guitarix.sourceforge.net/plugins/gxts9#ts9sim"
+      parameters: [ 1 ]
       connections: [ ]

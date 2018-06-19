@@ -1,4 +1,3 @@
-import time
 from threading import Thread
 from pythonosc import dispatcher, osc_server, udp_client
 
@@ -52,7 +51,7 @@ class FootpedalOscServer(OscServer):
         OscServer.__init__(self)
         self.register_uri("/mode/*", cb_mode)  # modes as string ("preset", etc)
         self.register_uri("/preset/*", cb_preset)  # preset number (1-4)
-        self.register_uri("/stomp/?/enable", cb_stomp_enable)  # enable stompbox (1-8)
+        self.register_uri("/stomp/*", cb_stomp_enable)  # enable stompbox (1-8)  TODO FIXUP
         self.register_uri("/stomp/?/select", cb_stomp_select)  # select stompbox for editing (1-8)
         self.register_uri("/looper/*", cb_looper)  # looper commands ("undo", "record", etc)
         self.register_uri("/tap/*", cb_tap)  # Send a tap (1) or tap tempo value (30-300)

@@ -24,9 +24,7 @@ class PedalboardGraph:
     2
     """
     def __init__(self, nodes):
-        print("nodes: " + str(nodes))
         self._graph = OrderedDict.fromkeys(nodes, value=[])
-        print("graph: " + str(self._graph))
 
     def draw(self):
         lines = []
@@ -56,7 +54,7 @@ class PedalboardGraph:
 
     @property
     def nodes(self):
-        return self._graph.keys()
+        return list(self._graph.keys())
 
     def add_edges(self, node, edges):
         """Add a list of edge indices (index to another node) to a node"""

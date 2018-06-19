@@ -1,15 +1,11 @@
 preset:
   author: Tobi Wulff
-  name: Distortion
+  name: MultiChorus
   global_parameters:
     volume: 90
     dry_wet: 50
   stompboxes:
     -
-      lv2: boost
-      parameters: [ 1, 5, 5, 3 ]
-      connections: [ 1 ]
-    -
-      lv2: autowah
-      parameters: [ 2, 2, 4 ]
+      lv2: "http://calf.sourceforge.net/plugins/MultiChorus"
+      parameters: [ 1, 5, 5 ]
       connections: [ ]

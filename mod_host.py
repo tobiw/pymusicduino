@@ -138,11 +138,14 @@ class ModHostSocket:
     """
     def __init__(self):
         self._socket = socket.socket()
-        self._log = logging.getLogger('mod_host.ModHostSocket')
+        self._log = logging.getLogger('musicbox.ModHostSocket')
 
     def connect(self):
         self._socket.connect(('localhost', 5555))
         self._socket.settimeout(0.5)
+
+    def close(self):
+        self._socket.close()
 
     def send(self, c):
         c += '\0'  # required for mod-host to recognize the command
@@ -158,64 +161,70 @@ class ModHostSocket:
 
 
 class Plugin:
-    MOD = None
-    socket = None
-    available_plugins = []
-    num_installed_plugins = 0
+    def __init__(self, uri, connections=None):
+        self._log = logging.getLogger('musicbox.Plugin')
+        self._log.info('Creating new Plugin {}'.format(uri))
 
-    def __init__(self, uri, pos=-1):
-        self._uri = uri
-        self._name = ''
-        self._class = ''
-        self._parameters = []
-        self._index = 0
-        self._log = logging.getLogger('mod_host.Plugin')
+        self._uri = uri  # LV2 plugin URI
+        self._name = ''  # Name from LV2 plugin information
+        self._class = ''  # Class from LV2 plugin information
+        self._parameters = []  # Parameters from LV2 plugin information
+        self._index = None  # mod-host effect index
+        self._connections = connections or []  # outgoing connection indices to other effects
+        self._has_stereo_input = self._has_stereo_output = False  # in/out port from LV2 plugin information TODO
+        self.is_enabled = True
 
-        if pos == -1:
-            pos = self.num_installed_plugins
+        self._load_plugin_info()
+        # fxparams = self.get_all_parameters()
+        # self._log.debug('Plugin "{}" parameters: '.format(self._name) + str(fxparams))
 
-        self._get_plugin_info()
-        self._log.debug('Plugin "{}" class {}, info: '.format(self._name, self._class) + str(self._parameters))
-        params = self.get_all_parameters()
-        self._log.debug('Plugin "{}" parameters: ' + str(params))
+        if self._name == 'Calf Multi Chorus':
+            self._has_stereo_output = self._has_stereo_input = True
 
-        self._index = pos
-        self.socket.send('add {} {}'.format(self._uri, self._index))
-        self._log.info('Plugin "{}" added: index {:d}'.format(self._name, self._index))
+    @property
+    def name(self):
+        return self._name
 
-        self.num_installed_plugins += 1
+    @property
+    def uri(self):
+        return self._uri
 
-    def remove(self):
-        self.socket.send('remove {}'.format(self._installed_plugins.index(self._uri)))
-        self._log.info('Plugin "{}" removed'.format(self._name))
-        self.num_installed_plugins -= 1
-        assert self.num_installed_plugins >= 0
+    @property
+    def index(self):
+        return self._index
 
-    def connect(self, connect_from, connect_to):
-        self._log.info('Plugin "{}": connecting from {} to {}'.format(connect_from, connect_to))
-        self.socket.send('connect {} effect_{}:in_l'.format(connect_from, self._index))
-        self.socket.send('connect effect_{}:out_l {}'.format(self._index, connect_to))
+    @property
+    def has_stereo_output(self):
+        return self._has_stereo_output
 
-        # Stereo output
-        if connect_to == 'system:playback_1':
-            self.socket.send('connect effect_{}:out_l system:playback_2'.format(self._index))
+    @property
+    def has_stereo_input(self):
+        return self._has_stereo_input
 
-    def _get_plugin_info(self):
-        lines = subprocess.check_output(['lv2info', self._uri]).splitlines()
-        self._name = lines[2].split(b':', 1)[-1].strip()
-        self._class = lines[3].split(b':', 1)[-1].strip()
+    def _load_plugin_info(self):
+        self._log.info('Getting plugin info for {}'.format(self._uri))
+        output = subprocess.check_output(['lv2info', self._uri])
+        lines = [l.decode('utf-8').strip() for l in output.splitlines()]
+        self._log.debug('lv2info output: ' + str(lines))
+        for l in lines:
+            if l.startswith('Name:'):
+                self._name = l.split(':', 1)[-1].strip()
+            if l.startswith('Class:'):
+                self._class = l.split(':', 1)[-1].strip()
+                break
+        self._log.debug('Found plugin class/name: {}/{}'.format(self._class, self._name))
 
         # Parse ports (parameters)
         parameter_sections = []
         current_port = 0
         while True:
             try:
-                current_port_line_index = lines.index('\tPort {}:'.format(current_port))
+                current_port_line_index = lines.index('Port {}:'.format(current_port))
             except ValueError:
                 break
 
             try:
-                next_port_line_index = lines.index('\tPort {}:'.format(current_port+1))
+                next_port_line_index = lines.index('Port {}:'.format(current_port+1))
             except ValueError:
                 next_port_line_index = -1
 
@@ -234,15 +243,7 @@ class Plugin:
                     if line.startswith(p):
                         port_info[p.lower()] = line.split(':', 1)[-1].strip()
             self._parameters.append(port_info)
-
-    def set_parameter(self, symbol, value):
-        self._log.info('Plugin "{}": setting "{:s}" to {!s}'.format(self._name, symbol, value))
-        return self.socket.send('param_set {} {} {}'.format(self._index, symbol, value))
-
-    def get_parameter(self, symbol):
-        r = float(self.socket.send('param_get {} {}'.format(self._index, symbol))[1])
-        self._log.info('Plugin "{}": "{:s}" is {!s}'.format(self._name, symbol, r))
-        return r
+        self._log.debug('Found plugin parameters: ' + str(self._parameters))
 
     def get_all_parameters(self):
         params = {}
@@ -253,38 +254,6 @@ class Plugin:
                 pass
         return params
 
-    def bypass(self, enable):
-        self._log.info('Plugin "{}": setting bypass {}'.format(self._name, 'enable' if enable else 'disable'))
-        return self.socket.send('bypass {} {}'.format(self._index, 1 if enable else 0))
-
-
-class DirectionalGraph:
-    """
-    >>> g = DirectionalGraph({'a': ['b', 'c'], 'b': ['c', 'd'], 'c': [], 'd': []})
-    >>> g.nodes
-    ['a', 'b', 'c', 'd']
-    >>> sorted(g.get_outgoing_edges('a'))
-    ['b', 'c']
-    >>> g.get_incoming_edges('b')
-    ['a']
-    >>> sorted(g.get_incoming_edges('c'))
-    ['a', 'b']
-    >>> g.get_outgoing_edges('d')
-    []
-    """
-    def __init__(self, graph):
-        self._graph = graph
-
-    @property
-    def nodes(self):
-        return sorted(list(self._graph.keys()))
-
-    def get_outgoing_edges(self, node):
-        return self._graph[node]
-
-    def get_incoming_edges(self, node):
-        return [n for n, edges in self._graph.items() if node in edges]
-
 
 class ModHostClient:
     """
@@ -292,16 +261,15 @@ class ModHostClient:
     """
     def __init__(self):
         """Initialize mod-host socket connection and list of plugins"""
-        self._log = logging.getLogger('mod_host.ModHostClient')
+        self._log = logging.getLogger('musicbox.ModHostClient')
+
         self._socket = ModHostSocket()
         self._socket.connect()
-        Plugin.socket = self._socket
         self._log.info('mod-host socket connected')
 
-        Plugin.available_plugins = self.list_plugins()
-        self._log.debug('List of plugins: ' + str(Plugin.available_plugins))
+        self._available_plugins = self.list_plugins()
+        self._log.debug('List of plugins: ' + str(self._available_plugins))
         self._installed_plugins = []
-        self.remove_all_plugins()  # cleanup mod-host when starting client
 
     def close(self):
         """Close socket connection"""
@@ -349,87 +317,56 @@ class ModHostClient:
 
         return connections
 
-    def disconnect_all_plugins(self):
+    def disconnect_all_effects(self):
         """Run disconnect command on all ports in mod-host"""
         for outport, inports in self.get_jack_connections():
             for inport in inports:
                 self._log.info('Disconnecting ports {} {}'.format(outport, inport))
                 self._socket.send('disconnect {} {}'.format(outport, inport))
 
-    def remove_all_plugins(self):
-        """Remove all plugins from mod-host (also removes all connections)"""
+    def remove_all_effects(self):
+        """Remove all effects from mod-host (also removes all connections)"""
         for line in [l for l in self._get_jack_connections_lines() if l.startswith(b'effect_')]:  # look at effects only
             i = line.split(b':', 1)[0].split(b'_', 1)[-1]  # get index by splitting effect_... name
             self._log.info('Removing effect {}'.format(i))
             self._socket.send('remove {}'.format(i))
         self._installed_plugins = []
 
-    def add_plugin(self, name, pos=-1):
-        # Determine and verify position
-        if pos == -1:
-            pos = len(self._installed_plugins)
-        assert pos <= len(self._installed_plugins)
+    def add_effect(self, p):
+        """Load and install effect in mod-host"""
+        self._socket.send('add {} {}'.format(p.uri, p.index))
+        self._log.info('Plugin "{}" added: index {:d}'.format(p.name, p.index))
 
-        # Get plugin URL and check if it already exists in signal chain
-        plugin_uri = Plugin.available_plugins[name]
-        if plugin_uri in self._installed_plugins:
-            self._log.warn('Plugin "{}" is already installed'.format(name))
-            return
+    def remove_effect(self, p):
+        """Remove effect from mod-host (doesn't affect any existing effect indices)"""
+        self._socket.send('remove {}'.format(p.index))
+        self._log.info('Plugin "{}" removed'.format(p.name))
 
-        plugin = Plugin(plugin_uri, pos)
+    def connect_effect(self, p, connect_from, connect_to):
+        """Connect the in and out ports of the effect"""
+        self._log.info('Plugin "{}": connecting from {} to {}'.format(p.name, connect_from, connect_to))
+        input_suffix = 'in_l' if p.has_stereo_input else 'in'
+        output_suffix = 'out_l' if p.has_stereo_output else 'out'
 
-        # Determine signal chain: connect to effects based on position;
-        # if first: connect to system:capture;
-        # if last: connect to system:playback
-        connect_from = None  # to be determined
-        connect_to = None  # to be determined
-        if pos == 0:
-            connect_from = 'system:capture_1'
-        elif pos == len(self._installed_plugins):
-            connect_to = 'system:playback_1'
+        self._socket.send('connect {in_port} effect_{idx}:{in_suffix}'.format(
+            in_port=connect_from or 'system:capture_1', idx=p.index, in_suffix=input_suffix))
+        self._socket.send('connect effect_{idx}:{out_suffix} {out_port}'.format(
+            idx=p.index, out_port=connect_to or 'system:playback_1', out_suffix=output_suffix))
 
-        if connect_from is None:
-            if len(self._installed_plugins) == 0:
-                connect_from = 'system:capture_1'
-            else:
-                connect_from = 'effect_{}:out_l'.format(pos-1)
-        if connect_to is None:
-            if len(self._installed_plugins) == 0:
-                connect_to = 'system:playback_1'
-            else:
-                connect_to = 'effect_{}:in_l'.format(pos+1)
-        self._log.debug('New connection: {} -> effect -> {}'.format(connect_from, connect_to))
+        # Stereo output
+        if connect_to == 'system:playback_1':
+            self._socket.send('connect effect_{idx}:{out_suffix} system:playback_2'.format(
+                idx=p.index, out_suffix=output_suffix))
 
-        plugin.connect(connect_from, connect_to)
+    def bypass_effect(self, p):
+        self._log.info('Plugin "{}": setting bypass {}'.format(p.name, 'enable' if not p.is_enabled else 'disable'))
+        self._socket.send('bypass {} {}'.format(p.index, 1 if not p.is_enabled else 0))
 
-        self._installed_plugins.insert(pos, plugin)
+    def set_parameter(self, p, symbol, value):
+        self._log.info('Plugin "{}": setting "{:s}" to {!s}'.format(p.name, symbol, value))
+        return self._socket.send('param_set {} {} {}'.format(p.index, symbol, value))
 
-    def load_preset_string(self, preset_str):
-        plugins = preset_str.split(',')
-        for p in plugins:
-            name = p.split('[')[0]
-            # self.disconnect_all()
-            self.add_plugin(name)
-
-
-def chorus_test(m):
-    info = m.get_plugin_info('MultiChorus')
-    for p in info['parameters']:
-        print('{}: {} to {}'.format(p['symbol'], p['minimum'], p['maximum']))
-    m.load_preset_string('MultiChorus[0 0 0 0]')
-    print(m.get_all_parameters(0, info))
-    m.set_parameter(0, 'mod_rate', 1.8)
-
-
-def reverb_test(m):
-    info = m.get_plugin_info('Reverb')
-    for p in info['parameters']:
-        print('{}: {} to {}'.format(p['symbol'], p['minimum'], p['maximum']))
-    m.load_preset_string('Compressor[0 0],Reverb[0 0 0 0]')
-    print(m.get_all_parameters(1, info))
-    m.set_parameter(1, 'room_size', 3)
-
-
-if __name__ == '__main__':
-    m = ModHostClient()
-    # reverb_test(m)
+    def get_parameter(self, p, symbol):
+        r = float(self._socket.send('param_get {} {}'.format(p.index, symbol))[1])
+        self._log.info('Plugin "{}": "{:s}" is {!s}'.format(p.name, symbol, r))
+        return r
