@@ -1,29 +1,7 @@
 from collections import OrderedDict
 
 
-class Plugin:
-    """
-    Effects plugin/stompbox. Loads a LV2 plugin as per URI but could
-    support other plugin frameworks as well.
-    """
-    def __init__(self, uri, i):
-        self._uri = uri
-        self._index = i
-
-    def __str__(self):
-        return '[{}] "{}"'.format(self._index, self._uri)
-
-    def get_parameter(self, symbol):
-        return "Not implemented"
-
-    def set_parameter(self, symbol, value):
-        return "Not implemented"
-
-    def set_bypass(self, enable):
-        return "bypass set: %d" % enable
-
-
-class Graph:
+class PedalboardGraph:
     """
     Organises and represents the pedal board as a directional graph.
     The nodes are effects plugins ("stompboxes") and the edges are the
@@ -32,7 +10,7 @@ class Graph:
     the last node won't have any outgoing connections: this implies connection
     to system_playback.
 
-    >>> g = Graph(['a', 'b', 'c'])
+    >>> g = PedalboardGraph(['a', 'b', 'c'])
     >>> g.add_edges('a', [1, 2])
     >>> g.add_edges('b', [2])
     >>> g.add_edges('c', [3])
@@ -81,26 +59,32 @@ class Graph:
         return self._graph.keys()
 
     def add_edges(self, node, edges):
+        """Add a list of edge indices (index to another node) to a node"""
         self._graph[node] = edges
 
     def add_edges_to_index(self, node_index, edges):
+        """Add a list of edge indices (index to another node) to a node (by index)"""
         self._graph[self.get_node_from_index(node_index)] = edges
 
     def get_outgoing_edges(self, node):
+        """Return all the edges by index leaving the node"""
         return self._graph[node]
 
     def get_incoming_edges(self, node):
+        """Return all the edges by index going into the node"""
         r = []
         for n, edges in self._graph.items():
             for e in edges:
                 if e == self.get_index(node):
                     r.append(self.get_index(n))
-        return sorted(set(r))
+        return list(set(r))
 
     def get_index(self, node):
+        """Find the index of a node object"""
         return list(self._graph.keys()).index(node)
 
     def get_node_from_index(self, node_index):
+        """Find the node object that is at the given index"""
         for i, node in enumerate(self._graph.keys()):
             if i == node_index:
                 return node
