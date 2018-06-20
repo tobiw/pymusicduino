@@ -328,7 +328,7 @@ class ModHostClient:
     def remove_all_effects(self):
         """Remove all effects from mod-host (also removes all connections)"""
         for line in [l for l in self._get_jack_connections_lines() if l.startswith(b'effect_')]:  # look at effects only
-            i = line.split(b':', 1)[0].split(b'_', 1)[-1]  # get index by splitting effect_... name
+            i = line.decode('utf-8').split(':', 1)[0].split('_', 1)[-1]  # get index by splitting effect_... name
             self._log.info('Removing effect {}'.format(i))
             self._socket.send('remove {}'.format(i))
         self._installed_plugins = []
