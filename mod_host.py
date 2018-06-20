@@ -149,10 +149,11 @@ class ModHostSocket:
 
     def send(self, c):
         c += '\0'  # required for mod-host to recognize the command
+        c = c.encode('utf-8')
         self._log.debug('sending command: "{!s}"'.format(c))
-        self._socket.send(c.encode('utf-8'))
+        self._socket.send(c)
         resp = self._socket.recv(1024)
-        resp = resp.strip().replace(b'\0', b'').split()[1:]
+        resp = resp.decode('utf-8').strip().replace('\0', '').split()[1:]
         self._log.debug(resp)
         if resp and int(resp[0]) < 0:  # error
             raise RuntimeError('Response from command "{}" was {}'.format(c, str(resp)))
