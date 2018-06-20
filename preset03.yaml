@@ -6,14 +6,10 @@ preset:
     dry_wet: 50
   stompboxes:
     -
-      lv2: ir
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_tremolo#_tremolo"
       parameters: [ 1, 5, 5, 3 ]
-      connections: [ 2 ]
-    -
-      lv2: echo
-      parameters: [ 2, 2, 4 ]
       connections: [ 1 ]
     -
-      lv2: eq3
-      parameters: [ 3, 2, 3 ]
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_amp#GUITARIX"
+      parameters: [ 2, 2, 4 ]
       connections: [ ]

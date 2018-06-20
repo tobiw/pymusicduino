@@ -346,18 +346,29 @@ class ModHostClient:
     def connect_effect(self, p, connect_from, connect_to):
         """Connect the in and out ports of the effect"""
         self._log.info('Plugin "{}": connecting from {} to {}'.format(p.name, connect_from, connect_to))
+
         input_suffix = 'in_l' if p.has_stereo_input else 'in'
         output_suffix = 'out_l' if p.has_stereo_output else 'out'
 
-        self._socket.send('connect {in_port} effect_{idx}:{in_suffix}'.format(
-            in_port=connect_from or 'system:capture_1', idx=p.index, in_suffix=input_suffix))
-        self._socket.send('connect effect_{idx}:{out_suffix} {out_port}'.format(
-            idx=p.index, out_port=connect_to or 'system:playback_1', out_suffix=output_suffix))
+        # If connection is empty, use system capture or playback
+        if connect_from is None or connect_from == []:
+            connect_from = ['system:capture_1']
+        else:
+            connect_from = ['effect_{}:out'.format(i) for i in connect_from]
+        if connect_to is None or connect_to == []:
+            connect_to = ['system:playback_1']
+        else:
+            connect_to = ['effect_{}:in'.format(i) for i in connect_to]
 
-        # Stereo output
-        if connect_to == 'system:playback_1':
-            self._socket.send('connect effect_{idx}:{out_suffix} system:playback_2'.format(
-                idx=p.index, out_suffix=output_suffix))
+        # Connect each incoming port
+        for port in connect_from:
+            self._socket.send('connect {in_port} effect_{idx}:{in_suffix}'.format(
+                in_port=port, idx=p.index, in_suffix=input_suffix))
+
+        # Connect each outgoing port
+        for port in connect_to:
+            self._socket.send('connect effect_{idx}:{out_suffix} {out_port}'.format(
+                idx=p.index, out_port=port, out_suffix=output_suffix))
 
     def bypass_effect(self, p):
         self._log.info('Plugin "{}": setting bypass {}'.format(p.name, 'enable' if not p.is_enabled else 'disable'))

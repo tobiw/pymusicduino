@@ -65,12 +65,21 @@ class MusicBox:
             'global_parameters': data['preset']['global_parameters']
         }
 
-        self._log.debug('yaml stompboxes: ' + str(data['preset']['stompboxes']))
+        self._log.debug('yaml preset data: ' + str(data['preset']))
+
         plugins = [Plugin(sb['lv2'], sb['connections']) for sb in data['preset']['stompboxes']]
         pb = PedalboardGraph(plugins)
+
+        # Assign index to each node
         for p in pb.nodes:
-            self._log.debug('Setting index {} for node {!s}'.format(pb.get_index(p), p))
             p._index = pb.get_index(p)
+
+        # Add graph edges (connections between effects)
+        for p in pb.nodes:
+            self._log.debug('Adding edges {!s} for node {!s}'.format(p._connections, p))
+            pb.add_edges(p, p._connections)
+
+        self._log.debug("Graph with edges:\n" + str(pb))
         pb.settings = settings
         return pb
 
@@ -92,12 +101,13 @@ class MusicBox:
 
         # Create plugins which will add them to the board
         self._pedalboard = self._create_graph_from_config('preset0{:d}.yaml'.format(preset_id))
-        self._log.debug(str(self._pedalboard))
 
-        # TODO: tell mod-host to load graph: go through graph nodes and tell mod-host, then go through connections (VIA ModHostClient!)
+        # Add nodes (effects) to mod-host
         for node in self._pedalboard.nodes:
             self._log.info("mod-host: add effect " + str(node))
             self._modhost.add_effect(node)
+
+        # Add edges (connections) to mod-host
         for node in self._pedalboard.nodes:
             self._log.info("mod-host: add connection {!s} -> [{!s}] -> {!s}".format(str(self._pedalboard.get_incoming_edges(node)), str(node), str(self._pedalboard.get_outgoing_edges(node))))
             self._modhost.connect_effect(node, self._pedalboard.get_incoming_edges(node), self._pedalboard.get_outgoing_edges(node))
@@ -110,7 +120,7 @@ class MusicBox:
         self._log.debug('cb_stomp_enable: ' + uri)
         stomp_id = int(uri.split('/')[2])
         assert 0 < stomp_id < 10
-        p = self._pedalboard.get_node_from_index(0)  # TODO
+        p = [n for n in self._pedalboard.nodes if n.index == stomp_id - 1][0]
         assert p is not None
         assert p.index == stomp_id - 1
         p.is_enabled = not p.is_enabled
