@@ -41,7 +41,7 @@ class MusicBox:
         self._midi_to_osc = MidiToOsc('Arduino Micro')  # works via callbacks, so not blocking
 
         self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset,
-                                              self.cb_stomp_enable, self.cb_stomp_select,
+                                              self.cb_stomp_enable, self.cb_stomp_enable,
                                               self.cb_looper, self.cb_tap, self.cb_slider)
 
         self._modhost = ModHostClient()
@@ -91,24 +91,12 @@ class MusicBox:
         pb.settings = settings
         return pb
 
-    def cb_mode(self, uri, msg=None):
-        """Handle incoming /mode/... OSC message"""
-        mode = uri.rsplit('/', 1)[-1]
-        assert mode in self.OSC_MODES.keys()
-        self._log.info("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
-        subprocess.call([MIDISEND_BIN, '0', str(self.OSC_MODES[mode].value)])
-
-    def cb_preset(self, uri, msg=None):
-        """Handle incoming /preset/<N> OSC message"""
-        preset_id = int(uri.rsplit('/', 1)[-1])
-        assert 0 < preset_id < 100
-        self._log.info("PRESET {:d}".format(preset_id))
-
+    def _load_preset(self, yaml_file):
         # Cleanup existing pedalboard in mod-host
         self._modhost.remove_all_effects()
 
         # Create plugins which will add them to the board
-        self._pedalboard = self._create_graph_from_config('preset0{:d}.yaml'.format(preset_id))
+        self._pedalboard = self._create_graph_from_config(yaml_file)
 
         # Add nodes (effects) to mod-host
         for node in self._pedalboard.nodes:
@@ -123,6 +111,31 @@ class MusicBox:
         if self._pedalboard.nodes[0].name == 'GxTubeScreamer':
             self._modhost.set_parameter(self._pedalboard.nodes[0], 'fslider0_', 0)
 
+    def cb_mode(self, uri, msg=None):
+        """Handle incoming /mode/... OSC message"""
+        mode = uri.rsplit('/', 1)[-1]
+        assert mode in self.OSC_MODES.keys()
+        self._log.info("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
+        subprocess.call([MIDISEND_BIN, '0', str(self.OSC_MODES[mode].value)])
+
+        if self.OSC_MODES[mode] == Mode.PRESET:
+            pass
+        elif self.OSC_MODES[mode] == Mode.STOMP:
+            self._load_preset('preset_stompboxes.yaml')
+        elif self.OSC_MODES[mode] == Mode.LOOPER:
+            # TODO: connect sooperlooper
+            pass
+        elif self.OSC_MODES[mode] == Mode.METRONOME:
+            # TODO: play metronome
+            pass
+
+    def cb_preset(self, uri, msg=None):
+        """Handle incoming /preset/<N> OSC message"""
+        preset_id = int(uri.rsplit('/', 1)[-1])
+        assert 0 < preset_id < 100
+        self._log.info("PRESET {:d}".format(preset_id))
+        self._load_preset('preset0{:d}.yaml'.format(preset_id))
+
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
         _, _, stomp_id, op = uri.split('/')
@@ -134,6 +147,7 @@ class MusicBox:
         if op == 'select':
             self._selected_stompbox = stomp_id
         elif op == 'enable':
+            assert self._pedalboard
             p = self._pedalboard.get_node_from_index(stomp_id - 1)
             if p:
                 assert p.index == stomp_id - 1

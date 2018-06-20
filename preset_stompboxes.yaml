@@ -1,0 +1,73 @@
+preset:
+  author: Tobi Wulff
+  name: Room Tone
+  global_parameters:
+    volume: 100
+    dry_wet: 50
+  stompboxes:
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_compressor#_compressor"
+      parameters: []
+      connections: []
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gxts9#ts9sim"
+      parameters: []
+      connections: []
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_flanger#_flanger"
+      parameters: []
+      connections: []
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_tremolo#_tremolo"
+      parameters: []
+      connections: []
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_digital_delay_st_#_digital_delay_st_"
+      parameters: []
+      connections: []
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gxautowah#autowah"
+      parameters: []
+      connections: []
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gxmetal_head#metal_head"
+      parameters: [ ]
+      connections: [ ]
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_amp#GUITARIX"
+      parameters: [ ]
+      connections: [ ]
+
+#http://calf.sourceforge.net/plugins/Compressor
+#http://calf.sourceforge.net/plugins/Flanger
+#http://calf.sourceforge.net/plugins/Gate
+#http://calf.sourceforge.net/plugins/MultiChorus
+#http://calf.sourceforge.net/plugins/Phaser
+#http://calf.sourceforge.net/plugins/Reverb
+#http://calf.sourceforge.net/plugins/ReverseDelay
+#http://calf.sourceforge.net/plugins/RotarySpeaker
+#http://calf.sourceforge.net/plugins/VintageDelay
+#http://guitarix.sourceforge.net/plugins/gx_amp#GUITARIX
+#http://guitarix.sourceforge.net/plugins/gx_chorus_stereo#_chorus_stereo
+#http://guitarix.sourceforge.net/plugins/gx_compressor#_compressor
+#http://guitarix.sourceforge.net/plugins/gx_delay_stereo#_delay_stereo
+#http://guitarix.sourceforge.net/plugins/gx_digital_delay_st_#_digital_delay_st_
+#http://guitarix.sourceforge.net/plugins/gx_echo_stereo#_echo_stereo
+#http://guitarix.sourceforge.net/plugins/gx_flanger#_flanger
+#http://guitarix.sourceforge.net/plugins/gx_fuzz_#fuzz_
+#http://guitarix.sourceforge.net/plugins/gx_mbcompressor_#_mbcompressor_
+#http://guitarix.sourceforge.net/plugins/gx_mbdelay_#_mbdelay_
+#http://guitarix.sourceforge.net/plugins/gx_mbdistortion_#_mbdistortion_
+#http://guitarix.sourceforge.net/plugins/gx_mbecho_#_mbecho_
+#http://guitarix.sourceforge.net/plugins/gx_phaser#_phaser
+#http://guitarix.sourceforge.net/plugins/gx_reverb_stereo#_reverb_stereo
+#http://guitarix.sourceforge.net/plugins/gx_tremolo#_tremolo
+#http://guitarix.sourceforge.net/plugins/gxautowah#autowah
+#http://guitarix.sourceforge.net/plugins/gxbooster#booster
+#http://guitarix.sourceforge.net/plugins/gxechocat#echocat
+#http://guitarix.sourceforge.net/plugins/gxmetal_amp#metal_amp
+#http://guitarix.sourceforge.net/plugins/gxmetal_head#metal_head
+#http://guitarix.sourceforge.net/plugins/gxts9#ts9sim
+#http://guitarix.sourceforge.net/plugins/gxtubedelay#tubedelay
+#http://guitarix.sourceforge.net/plugins/gxtubetremelo#tubetremelo
+#http://guitarix.sourceforge.net/plugins/gxtubevibrato#tubevibrato
