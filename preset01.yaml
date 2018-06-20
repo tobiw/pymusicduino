@@ -8,4 +8,8 @@ preset:
     -
       lv2: "http://guitarix.sourceforge.net/plugins/gxts9#ts9sim"
       parameters: [ 1 ]
+      connections: [ 1 ]
+    -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_amp#GUITARIX"
+      parameters: [ 2, 2, 4 ]
       connections: [ ]

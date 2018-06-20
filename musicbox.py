@@ -77,7 +77,15 @@ class MusicBox:
         # Add graph edges (connections between effects)
         for p in pb.nodes:
             self._log.debug('Adding edges {!s} for node {!s}'.format(p._connections, p))
-            pb.add_edges(p, p._connections)
+            effect_connections = []
+            for i, c in enumerate(p._connections):  # go through outgoing connections
+                p_in = pb.get_node_from_index(c)
+                assert p_in is not None
+                if p_in.has_stereo_input:
+                    effect_connections.append('effect_{}'.format(p_in.index) + ('in_l' if i == 0 else 'in_r'))
+                else:
+                    effect_connections.append('effect_{}:in'.format(p_in.index))
+            pb.add_edges(p, effect_connections)
 
         self._log.debug("Graph with edges:\n" + str(pb))
         pb.settings = settings
@@ -117,22 +125,21 @@ class MusicBox:
 
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
-        self._log.debug('cb_stomp_enable: ' + uri)
-        stomp_id = int(uri.split('/')[2])
+        _, _, stomp_id, op = uri.split('/')
+        stomp_id = int(stomp_id)
+        self._log.debug('cb_stomp_{}: {:d}'.format(op, stomp_id))
         assert 0 < stomp_id < 10
-        p = [n for n in self._pedalboard.nodes if n.index == stomp_id - 1][0]
-        assert p is not None
-        assert p.index == stomp_id - 1
-        p.is_enabled = not p.is_enabled
-        self._log.info('STOMP {} "{}" ENABLE {:d}'.format(p.index, p.name, p.is_enabled))
-        self._modhost.bypass_effect(p)
+        assert op in ['enable', 'select']
 
-    def cb_stomp_select(self, uri, msg=None):
-        """Handle incoming /stomp/<N>/select OSC message"""
-        stomp_id = int(uri.split('/')[2])
-        assert 0 < stomp_id < 10
-        self._log.info("STOMP select {:d}".format(stomp_id))
-        self._selected_stompbox = stomp_id
+        if op == 'select':
+            self._selected_stompbox = stomp_id
+        elif op == 'enable':
+            p = self._pedalboard.get_node_from_index(stomp_id - 1)
+            if p:
+                assert p.index == stomp_id - 1
+                p.is_enabled = not p.is_enabled
+                self._log.info('STOMP {} "{}" ENABLE {:d}'.format(p.index, p.name, p.is_enabled))
+                self._modhost.bypass_effect(p)
 
     def cb_looper(self, uri, msg=None):
         """Handle incoming /looper OSC messages to be proxied to sooperlooper"""

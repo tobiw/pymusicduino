@@ -353,12 +353,8 @@ class ModHostClient:
         # If connection is empty, use system capture or playback
         if connect_from is None or connect_from == []:
             connect_from = ['system:capture_1']
-        else:
-            connect_from = ['effect_{}:out'.format(i) for i in connect_from]
         if connect_to is None or connect_to == []:
             connect_to = ['system:playback_1']
-        else:
-            connect_to = ['effect_{}:in'.format(i) for i in connect_to]
 
         # Connect each incoming port
         for port in connect_from:
