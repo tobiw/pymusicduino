@@ -44,6 +44,8 @@ class MusicBox:
                                               self.cb_stomp_enable, self.cb_stomp_enable,
                                               self.cb_looper, self.cb_tap, self.cb_slider)
 
+        ModHostClient.restart()
+        time.sleep(1)
         self._modhost = ModHostClient()
 
     def run(self):

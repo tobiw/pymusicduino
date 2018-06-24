@@ -279,6 +279,11 @@ class ModHostClient:
         self._socket.close()
         self._log.info('mod-host socket closed')
 
+    @classmethod
+    def restart(cls):
+        """Restart the mod-host daemon"""
+        subprocess.check_call(['systemctl', 'restart', 'mod-host'])
+
     def list_plugins(self):
         """Use lv2ls to get dict of all available LV2 plugins (name: uri)"""
         plugins = {}
