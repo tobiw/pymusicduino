@@ -5,6 +5,7 @@ import time
 import yaml
 
 from footpedal import MidiToOsc
+from metronome import Metronome
 from mod_host import ModHostClient, Plugin
 from osc_server import FootpedalOscServer
 from pedalboard_graph import PedalboardGraph
@@ -34,19 +35,28 @@ class MusicBox:
     def __init__(self):
         self._log = logging.getLogger('musicbox.MusicBox')
 
+        # Internal attributes
         self._selected_stompbox = 0  # 0 = global parameters, 1-8 = actual stompboxes
-        self._last_tap_time = 0
-        self._tap_tempo = 0
+        self._current_mode = Mode.PRESET
 
+        # OSC inputs (footpedal)
         self._midi_to_osc = MidiToOsc('Arduino Micro')  # works via callbacks, so not blocking
 
+        # OSC server (receives inputs)
         self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset,
                                               self.cb_stomp_enable, self.cb_stomp_enable,
                                               self.cb_looper, self.cb_tap, self.cb_slider)
 
+        # mod-host LV2 host (output)
         ModHostClient.restart()
         time.sleep(1)
         self._modhost = ModHostClient()
+
+        # Metronome output (using klick)
+        self._metronome = Metronome()
+
+        # Looper object (using sooperlooper)
+        # TODO
 
     def run(self):
         self._osc_server.start()
@@ -120,6 +130,11 @@ class MusicBox:
         self._log.info("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
         subprocess.call([MIDISEND_BIN, '0', str(self.OSC_MODES[mode].value)])
 
+        # Action when leaving mode
+        if self.OSC_MODES[mode] != Mode.METRONOME:
+            self._metronome.enable(False)
+
+        # Action based on activated mode
         if self.OSC_MODES[mode] == Mode.PRESET:
             pass
         elif self.OSC_MODES[mode] == Mode.STOMP:
@@ -129,7 +144,9 @@ class MusicBox:
             pass
         elif self.OSC_MODES[mode] == Mode.METRONOME:
             # TODO: play metronome
-            pass
+            self._metronome.enable(True)
+
+        self._current_mode = self.OSC_MODES[mode]
 
     def cb_preset(self, uri, msg=None):
         """Handle incoming /preset/<N> OSC message"""
@@ -171,17 +188,10 @@ class MusicBox:
         tap_tempo = msg if msg else uri.rsplit('/', 1)[-1]
         tap_tempo = int(tap_tempo)
         self._log.info("received tap value {}".format(str(tap_tempo)))
-        if tap_tempo < 30:
-            # Calculate tap tempo
-            now = time.time()
-            if self._last_tap_time == 0:
-                self._tap_tempo = 0
-            else:
-                self._tap_tempo = 60 / (now - self._last_tap_time)
-                self._log.debug("TAP TEMPO: {:d}".format(int(self._tap_tempo)))
-            self._last_tap_time = now
+        if tap_tempo == 1:
+            self._metronome.tap()
         else:
-            self._tap_tempo = tap_tempo
+            self._metronome.set_bpm(tap_tempo)
 
     def cb_slider(self, uri, msg=None):
         """Handle incoming /slider/<N> OSC message"""
@@ -189,7 +199,15 @@ class MusicBox:
         slider_id = int(slider_id)
         value = float(value)
         self._log.info("SLIDER {:d} = {:f}".format(slider_id, value))
-        # TODO: tell mod-host/sooperlooper to set param x
+        if self.OSC_MODES[self._current_mode] in [Mode.PRESET, Mode.STOMP]:
+            # Adjust currently selected stompbox (default 1)
+            pass
+        elif self.OSC_MODES[self._current_mode] == Mode.LOOPER:
+            # Adjust looper parameters
+            pass
+        elif self.OSC_MODES[self._current_mode] == Mode.METRONOME:
+            # Adjust bpm
+            self._metronome.set_bpm(value)
 
 
 if __name__ == '__main__':
