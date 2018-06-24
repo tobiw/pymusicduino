@@ -1,4 +1,4 @@
-from subprocess import check_output
+from subprocess import check_call, check_output
 
 
 def _parse(s):
@@ -60,3 +60,25 @@ def get_connections():
     sooperlooper:loop0_out_2
     """
     return _parse(check_output(['jack_lsp', '-c']).decode('utf-8'))
+
+
+def _jack_connect_disconnect(cmd, port_a, port_b):
+    if cmd not in ['connect', 'disconnect']:
+        raise ValueError('cmd must be connect or disconnect')
+
+    if not port_a or not port_b:
+        raise ValueError('port_a and port_b must be non-empty strings')
+
+    current_ports = check_output(['jack_lsp']).decode('utf-8')
+    if port_a not in current_ports or port_b not in current_ports:
+        raise ValueError('port_a and port_b must be a valid port')
+
+    check_call(['jack_' + cmd, port_a, port_b])
+
+
+def connect(port_a, port_b):
+    _jack_connect_disconnect('connect', port_a, port_b)
+
+
+def disconnect(port_a, port_b):
+    _jack_connect_disconnect('disconnect', port_a, port_b)
