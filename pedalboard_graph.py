@@ -73,6 +73,7 @@ class PedalboardGraph:
         r = []
         for n, edges in self._graph.items():
             for e in edges:
+                assert type(e) == int, type(e)
                 if e == self.get_index(node):
                     r.append(self.get_index(n))
         return list(set(r))

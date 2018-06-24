@@ -38,6 +38,7 @@ class MusicBox:
         # Internal attributes
         self._selected_stompbox = 0  # 0 = global parameters, 1-8 = actual stompboxes
         self._current_mode = Mode.PRESET
+        self._last_slider_update_time = 0
 
         # OSC inputs (footpedal)
         self._midi_to_osc = MidiToOsc('Arduino Micro')  # works via callbacks, so not blocking
@@ -86,18 +87,10 @@ class MusicBox:
         for p in pb.nodes:
             p._index = pb.get_index(p)
 
-        # Add graph edges (connections between effects)
+        # Add graph edges (connections between effects as index to node - mod_host module will do conversion to "effect_:in" string)
         for p in pb.nodes:
             self._log.debug('Adding edges {!s} for node {!s}'.format(p._connections, p))
-            effect_connections = []
-            for i, c in enumerate(p._connections):  # go through outgoing connections
-                p_in = pb.get_node_from_index(c)
-                assert p_in is not None
-                if p_in.has_stereo_input:
-                    effect_connections.append('effect_{}'.format(p_in.index) + ('in_l' if i == 0 else 'in_r'))
-                else:
-                    effect_connections.append('effect_{}:in'.format(p_in.index))
-            pb.add_edges(p, effect_connections)
+            pb.add_edges(p, p._connections)
 
         self._log.debug("Graph with edges:\n" + str(pb))
         pb.settings = settings
@@ -115,13 +108,35 @@ class MusicBox:
             self._log.info("mod-host: add effect " + str(node))
             self._modhost.add_effect(node)
 
+        # Store info about stereo connections of neighbouring nodes
+        output_stereo = [n.has_stereo_output for n in self._pedalboard.nodes]
+        input_stereo = [n.has_stereo_input for n in self._pedalboard.nodes]
+
         # Add edges (connections) to mod-host
         for node in self._pedalboard.nodes:
-            self._log.info("mod-host: add connection {!s} -> [{!s}] -> {!s}".format(str(self._pedalboard.get_incoming_edges(node)), str(node), str(self._pedalboard.get_outgoing_edges(node))))
-            self._modhost.connect_effect(node, self._pedalboard.get_incoming_edges(node), self._pedalboard.get_outgoing_edges(node))
+            incoming = self._pedalboard.get_incoming_edges(node)
+            outgoing = self._pedalboard.get_outgoing_edges(node)
+            self._log.info('mod-host: add connection {!s} -> [{:d}] "{:s}" -> {!s}'.format(incoming, node.index, node.name, outgoing))
+            self._modhost.connect_effect(node, incoming, outgoing, output_stereo, input_stereo)
 
         if self._pedalboard.nodes[0].name == 'GxTubeScreamer':
             self._modhost.set_parameter(self._pedalboard.nodes[0], 'fslider0_', 0)
+
+    def _handle_slider_stompbox(self, slider_id, value):
+        stompbox = self._pedalboard.nodes[self._selected_stompbox - 1]
+        param_name, param_info = stompbox.get_parameter_info_by_index(slider_id - 1)
+        if param_name is None:
+            self._log.info('{!s} has no parameter for slider {:d}'.format(stompbox, slider_id))
+            return
+
+        self._log.debug('{:s} param_info {!s}'.format(param_name, param_info))
+
+        # Convert slider value (0-1023) to parameters (min, max) range
+        min_max_ratio = 1024 / (param_info['Maximum'] - param_info['Minimum'])
+        value /= min_max_ratio
+
+        self._log.info('Setting stomp #{:d} param #{:d} "{:s}" to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, value, min_max_ratio))
+        self._modhost.set_parameter(stompbox, param_name, value)
 
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
@@ -195,17 +210,23 @@ class MusicBox:
 
     def cb_slider(self, uri, msg=None):
         """Handle incoming /slider/<N> OSC message"""
-        _, slider_id, value = uri.rsplit('/', 2)
-        slider_id = int(slider_id)
-        value = float(value)
+        now = time.time()
+        if now - self._last_slider_update_time < 0.5:
+            return
+        self._last_slider_update_time = now
+
+        uri_splits = uri.split('/')
+        slider_id = int(uri_splits[2])
+        value = float(uri_splits[3])
         self._log.info("SLIDER {:d} = {:f}".format(slider_id, value))
-        if self.OSC_MODES[self._current_mode] in [Mode.PRESET, Mode.STOMP]:
+
+        if self._current_mode in [Mode.PRESET, Mode.STOMP]:
             # Adjust currently selected stompbox (default 1)
-            pass
-        elif self.OSC_MODES[self._current_mode] == Mode.LOOPER:
+            self._handle_slider_stompbox(slider_id, value)
+        elif self._current_mode == Mode.LOOPER:
             # Adjust looper parameters
             pass
-        elif self.OSC_MODES[self._current_mode] == Mode.METRONOME:
+        elif self._current_mode == Mode.METRONOME:
             # Adjust bpm
             self._metronome.set_bpm(value)
 

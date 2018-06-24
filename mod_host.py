@@ -178,8 +178,6 @@ class Plugin:
         self.is_enabled = True
 
         self._load_plugin_info()
-        # fxparams = self.get_all_parameters()
-        # self._log.debug('Plugin "{}" parameters: '.format(self._name) + str(fxparams))
 
         if self._name == 'Calf Multi Chorus':
             self._has_stereo_output = self._has_stereo_input = True
@@ -204,11 +202,15 @@ class Plugin:
     def has_stereo_input(self):
         return self._has_stereo_input
 
+    def get_parameter_info_by_index(self, idx):
+        """Returns a tuple (name, info) where info is a dict."""
+        return list(self._parameters[idx].items())[0]
+
     def _load_plugin_info(self):
         self._log.info('Getting plugin info for {}'.format(self._uri))
         output = subprocess.check_output(['lv2info', self._uri])
         lines = [l.decode('utf-8').strip() for l in output.splitlines()]
-        self._log.debug('lv2info output: ' + str(lines))
+        # self._log.debug('lv2info output: ' + str(lines))
         for l in lines:
             if l.startswith('Name:'):
                 self._name = l.split(':', 1)[-1].strip()
@@ -241,11 +243,15 @@ class Plugin:
 
             # This port is a control port, start parsing all lines
             port_info = {}
+            port_name = None
             for line in [l.strip() for l in section]:
-                for p in ['Symbol', 'Name', 'Minimum', 'Maximum', 'Default']:
+                if line.startswith('Name'):
+                    port_name = line.split(':', 1)[-1].strip()
+                for p, method in [('Symbol', str), ('Minimum', float), ('Maximum', float), ('Default', float)]:
                     if line.startswith(p):
-                        port_info[p.lower()] = line.split(':', 1)[-1].strip()
-            self._parameters.append(port_info)
+                        port_info[p] = method(line.split(':', 1)[-1].strip())
+            if port_name and port_info:
+                self._parameters.append({port_name: port_info})
         self._log.debug('Found plugin parameters: ' + str(self._parameters))
 
     def get_all_parameters(self):
@@ -322,18 +328,29 @@ class ModHostClient:
         self._socket.send('remove {}'.format(p.index))
         self._log.info('Plugin "{}" removed'.format(p.name))
 
-    def connect_effect(self, p, connect_from, connect_to):
+    def connect_effect(self, p, connect_from, connect_to, connect_from_stereo, connect_to_stereo):
         """Connect the in and out ports of the effect"""
         self._log.info('Plugin "{}": connecting from {} to {}'.format(p.name, connect_from, connect_to))
 
+        # Stereo suffix for current effect p
         input_suffix = 'in_l' if p.has_stereo_input else 'in'
         output_suffix = 'out_l' if p.has_stereo_output else 'out'
 
-        # If connection is empty, use system capture or playback
+        # If connection is empty, use system capture or playback.
         if connect_from is None or connect_from == []:
             connect_from = ['system:capture_1']
+        else:
+            # connect_from contains numerical ID of neighbour node
+            # Transform to effect_...:out string
+            connect_from = ['effect_{:d}:out{:s}'.format(c, '_l' if connect_from_stereo[c] else '') for c in connect_from]
+
         if connect_to is None or connect_to == []:
             connect_to = ['system:playback_1']
+        else:
+            connect_to = ['effect_{:d}:in{:s}'.format(c, '_l' if connect_to_stereo[c] else '') for c in connect_to]
+
+        self._log.debug('For effect {:s}: adjusted connect_from: {!s}'.format(p.name, connect_from))
+        self._log.debug('For effect {:s}: adjusted connect_to: {!s}'.format(p.name, connect_to))
 
         # Connect each incoming port
         for port in connect_from:
