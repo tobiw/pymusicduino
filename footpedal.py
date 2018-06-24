@@ -64,7 +64,7 @@ class MidiToOsc:
         self._midi_out.openPort(arduino_port)
 
     def _midi_message_cb(self, msg):
-        channel, cc, value = msg.getChannel(), msg.getControllerNumber(), msg.getControllerValue()
+        cc, value = msg.getControllerNumber(), msg.getControllerValue()
         osc_topic = self._cc_osc_translation.get(cc, None)
         print('{} -> {} -> {}'.format(cc, '1' if value > 0 else '0', str(osc_topic)))
         if osc_topic:

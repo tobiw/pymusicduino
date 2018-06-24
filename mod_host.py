@@ -2,6 +2,8 @@ import logging
 import socket
 import subprocess
 
+import jack_connections
+
 
 """
 mod-host commands from github README:
@@ -225,7 +227,7 @@ class Plugin:
                 break
 
             try:
-                next_port_line_index = lines.index('Port {}:'.format(current_port+1))
+                next_port_line_index = lines.index('Port {}:'.format(current_port + 1))
             except ValueError:
                 next_port_line_index = -1
 
@@ -288,47 +290,19 @@ class ModHostClient:
             plugins[name] = l
         return plugins
 
-    def _get_jack_connections_lines(self):
-        """Return all jackd connections as a list (output of jack_lsp)"""
-        return subprocess.check_output(['jack_lsp', '-c']).splitlines()
-
-    def get_jack_connections(self):
-        """Get parsed jackd connections as a list of tuples (port, connected_ports)"""
-        connections = []
-        lines = self._get_jack_connections_lines()
-        for i, line in enumerate(lines):
-            if not any(p in line for p in ['capture', ':out']):  # only use outports as first item
-                continue
-
-            self._log.debug('outport: ' + line)
-
-            connected_ports = []
-            j = 1
-            while (i + j) < len(lines):
-                next_line = lines[i+j]
-                if next_line.startswith(b'   '):  # next line is a connected inport
-                    connected_ports.append(next_line.strip())
-                    self._log.debug('list of connected ports for "{}": '.format(line) + str(connected_ports))
-                else:  # hit the next outport
-                    break
-                j += 1
-
-            if connected_ports:
-                connections.append((line, connected_ports))
-
-        return connections
-
     def disconnect_all_effects(self):
         """Run disconnect command on all ports in mod-host"""
-        for outport, inports in self.get_jack_connections():
+        for outport, inports in jack_connections.get_connections().iteritems():
+            if not any(p in outport for p in ['capture', ':out']):  # skip if outport is not actually capture or effect output
+                continue
             for inport in inports:
                 self._log.info('Disconnecting ports {} {}'.format(outport, inport))
                 self._socket.send('disconnect {} {}'.format(outport, inport))
 
     def remove_all_effects(self):
         """Remove all effects from mod-host (also removes all connections)"""
-        for line in [l for l in self._get_jack_connections_lines() if l.startswith(b'effect_')]:  # look at effects only
-            i = line.decode('utf-8').split(':', 1)[0].split('_', 1)[-1]  # get index by splitting effect_... name
+        for line in [l for l in jack_connections.get_connections().keys() if l.startswith('effect_')]:  # look at effects only
+            i = line.split(':', 1)[0].split('_', 1)[-1]  # get index by splitting effect_... name
             self._log.info('Removing effect {}'.format(i))
             self._socket.send('remove {}'.format(i))
         self._installed_plugins = []

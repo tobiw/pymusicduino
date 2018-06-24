@@ -33,7 +33,6 @@ def _parse(s):
                 connections[originating_port] = []
             connections[originating_port].append(line.strip())
 
-    assert connections
     return connections
 
 

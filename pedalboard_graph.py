@@ -43,7 +43,7 @@ class PedalboardGraph:
             # Draw next node
             lines.append(' '.join(str(self.get_node_from_index(i)) for i in cur_edges))
 
-            cur_node_index +=1
+            cur_node_index += 1
             cur_node = list(self._graph.keys())[cur_node_index]
             cur_edges = self.get_outgoing_edges(cur_node)
 
