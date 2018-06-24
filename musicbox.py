@@ -36,7 +36,7 @@ class MusicBox:
         self._log = logging.getLogger('musicbox.MusicBox')
 
         # Internal attributes
-        self._selected_stompbox = 0  # 0 = global parameters, 1-8 = actual stompboxes
+        self._selected_stompbox = 1  # 0 = global parameters, 1-8 = actual stompboxes
         self._current_mode = Mode.PRESET
         self._last_slider_update_time = 0
 
@@ -134,6 +134,8 @@ class MusicBox:
         # Convert slider value (0-1023) to parameters (min, max) range
         min_max_ratio = 1024 / (param_info['Maximum'] - param_info['Minimum'])
         value /= min_max_ratio
+        value += param_info['Minimum']
+        value = int(value)
 
         self._log.info('Setting stomp #{:d} param #{:d} "{:s}" to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, value, min_max_ratio))
         self._modhost.set_parameter(stompbox, param_name, value)
@@ -217,7 +219,7 @@ class MusicBox:
 
         uri_splits = uri.split('/')
         slider_id = int(uri_splits[2])
-        value = float(uri_splits[3])
+        value = float(msg) if msg is not None else float(uri_splits[3])
         self._log.info("SLIDER {:d} = {:f}".format(slider_id, value))
 
         if self._current_mode in [Mode.PRESET, Mode.STOMP]:
@@ -227,8 +229,10 @@ class MusicBox:
             # Adjust looper parameters
             pass
         elif self._current_mode == Mode.METRONOME:
-            # Adjust bpm
-            self._metronome.set_bpm(value)
+            if slider_id == 1:
+                self._metronome.set_bpm(value)
+            elif slider_id == 2:
+                self._metronome.set_volume(value)
 
 
 if __name__ == '__main__':
