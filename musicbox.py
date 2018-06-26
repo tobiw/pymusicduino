@@ -5,6 +5,7 @@ import time
 import yaml
 
 from footpedal import MidiToOsc
+from looper import Looper
 from metronome import Metronome
 from mod_host import ModHostClient, Plugin
 from osc_server import FootpedalOscServer
@@ -57,7 +58,7 @@ class MusicBox:
         self._metronome = Metronome()
 
         # Looper object (using sooperlooper)
-        # TODO
+        self._looper = Looper()
 
     def run(self):
         self._osc_server.start()
@@ -148,6 +149,8 @@ class MusicBox:
         subprocess.call([MIDISEND_BIN, '0', str(self.OSC_MODES[mode].value)])
 
         # Action when leaving mode
+        if self.OSC_MODES[mode] != Mode.LOOPER:
+            self._looper.enable(False)
         if self.OSC_MODES[mode] != Mode.METRONOME:
             self._metronome.enable(False)
 
@@ -157,10 +160,8 @@ class MusicBox:
         elif self.OSC_MODES[mode] == Mode.STOMP:
             self._load_preset('preset_stompboxes.yaml')
         elif self.OSC_MODES[mode] == Mode.LOOPER:
-            # TODO: connect sooperlooper
-            pass
+            self._looper.enable(True)
         elif self.OSC_MODES[mode] == Mode.METRONOME:
-            # TODO: play metronome
             self._metronome.enable(True)
 
         self._current_mode = self.OSC_MODES[mode]
@@ -194,8 +195,13 @@ class MusicBox:
     def cb_looper(self, uri, msg=None):
         """Handle incoming /looper OSC messages to be proxied to sooperlooper"""
         _, command = uri.rsplit('/', 1)
-        if command in ['undo', 'record', 'overdub']:
-            self._osc_server.send_looper_osc("/sl/0/hit", command)
+        cmd_fn = {
+            'undo': self._looper.undo,
+            'record': self._looper.record,
+            'overdub': self._looper.overdub,
+        }
+        if command in cmd_fn:
+            cmd_fn[command]()
             self._log.info("Sent /sl/0/hit s:{:s} to sooperlooper".format(command))
         else:
             self._log.error("Invalid sooperlooper command {:s}".format(command))

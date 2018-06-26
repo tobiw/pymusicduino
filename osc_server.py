@@ -1,5 +1,5 @@
 from threading import Thread
-from pythonosc import dispatcher, osc_server, udp_client
+from pythonosc import dispatcher, osc_server
 
 
 class OscServer(object):
@@ -59,9 +59,3 @@ class FootpedalOscServer(OscServer):
 
         # Extra inputs (not on pedal board; e.g. OSC app)
         self.register_uri("/slider/?/*", cb_slider)  # slider value (0-1023)
-
-        # OSC connection to sooperlooper
-        self._looper_osc = udp_client.SimpleUDPClient('127.0.0.1', 9951)
-
-    def send_looper_osc(self, msg, value='1'):
-        self._looper_osc.send_message(msg, value)
