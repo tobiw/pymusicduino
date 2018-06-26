@@ -1,18 +1,15 @@
 import enum
 import logging
-import subprocess
 import time
 import yaml
 
 from footpedal import MidiToOsc
 from looper import Looper
 from metronome import Metronome
+from midisend import midisend
 from mod_host import ModHostClient, Plugin
 from osc_server import FootpedalOscServer
 from pedalboard_graph import PedalboardGraph
-
-
-MIDISEND_BIN = '/home/tobiw/code/rust/midisend/target/release/midisend'
 
 
 logger = logging.getLogger('musicbox')
@@ -146,7 +143,7 @@ class MusicBox:
         mode = uri.rsplit('/', 1)[-1]
         assert mode in self.OSC_MODES.keys()
         self._log.info("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
-        subprocess.call([MIDISEND_BIN, '0', str(self.OSC_MODES[mode].value)])
+        midisend(1, self.OSC_MODES[mode].value)
 
         # Action when leaving mode
         if self.OSC_MODES[mode] != Mode.LOOPER:
@@ -215,6 +212,7 @@ class MusicBox:
             self._metronome.tap()
         else:
             self._metronome.set_bpm(tap_tempo)
+        midisend(2, self._metronome.bpm)
 
     def cb_slider(self, uri, msg=None):
         """Handle incoming /slider/<N> OSC message"""
