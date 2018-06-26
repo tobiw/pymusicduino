@@ -44,7 +44,7 @@ class MusicBox:
         # OSC server (receives inputs)
         self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset,
                                               self.cb_stomp_enable, self.cb_stomp_enable,
-                                              self.cb_looper, self.cb_tap, self.cb_slider)
+                                              self.cb_looper, self.cb_metronome, self.cb_slider)
 
         # mod-host LV2 host (output)
         ModHostClient.restart()
@@ -203,25 +203,36 @@ class MusicBox:
         else:
             self._log.error("Invalid sooperlooper command {:s}".format(command))
 
-    def cb_tap(self, uri, msg=None):
-        """Handle incoming /tap/<N> OSC message and set or calculate tap tempo"""
-        tap_tempo = msg if msg else uri.rsplit('/', 1)[-1]
-        tap_tempo = int(tap_tempo)
-        self._log.info("received tap value {}".format(str(tap_tempo)))
-        if tap_tempo == 1:
+    def cb_metronome(self, uri, msg=None):
+        """Handle incoming /metronome/ OSC messages"""
+        uri_splits = uri.split('/')
+        assert uri_splits[0] == ''
+        assert uri_splits[1] == 'metronome'
+        command = uri_splits[2]
+
+        self._log.info("METRONOME {}".format(command))
+
+        if command == 'pause':
+            self._metronome.enable(not self._metronome.is_running)
+        elif command == 'inc_bpm':
+            self._metronome.set_bpm(self._metronome.bpm + 8)
+        elif command == 'dec_bpm':
+            self._metronome.set_bpm(self._metronome.bpm - 8)
+        elif command == 'tap':
             self._metronome.tap()
-        else:
-            self._metronome.set_bpm(tap_tempo)
-        midisend(2, self._metronome.bpm)
+
+        midisend(2, self._metronome.get_bpm())
 
     def cb_slider(self, uri, msg=None):
         """Handle incoming /slider/<N> OSC message"""
         now = time.time()
-        if now - self._last_slider_update_time < 0.5:
+        if now - self._last_slider_update_time < 0.2:
             return
         self._last_slider_update_time = now
 
         uri_splits = uri.split('/')
+        assert uri_splits[0] == ''
+        assert uri_splits[1] == 'slider'
         slider_id = int(uri_splits[2])
         value = float(msg) if msg is not None else float(uri_splits[3])
         self._log.info("SLIDER {:d} = {:f}".format(slider_id, value))

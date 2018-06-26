@@ -34,14 +34,25 @@ class MidiToOsc:
         # 7) Stomp3En[16]  Stomp7En[26]               Stomp3Sel[46]
         # 8) Stomp4En[17]  TapTempo[27]               Stomp4Sel[47]
         self._cc_osc_translation = {
+            # Presets
             10: '/preset/1', 11: '/preset/2', 12: '/preset/3', 13: '/preset/4',
             14: '/stomp/1/enable', 15: '/stomp/2/enable', 16: '/stomp/3/enable', 17: '/stomp/4/enable',
+
+            # Stompboxes
             20: '/stomp/1/enable', 21: '/stomp/2/enable', 22: '/stomp/3/enable', 23: '/stomp/4/enable',
-            24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/tap/1',
+            24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/stomp/8/enable',
+
+            # Looper
             30: '/looper/undo', 31: '/looper/record', 32: '/looper/overdub', 33: '',
             34: '', 35: '', 36: '', 37: '',
-            40: '/mode/preset', 41: '/mode/stomp', 42: '/mode/looper', 43: '/mode/metronome',
-            44: '/stomp/1/select', 45: '/stomp/2/select', 46: '/stomp/3/select', 47: '/stomp/4/select'
+
+            # Metronome
+            40: '/metronome/pause', 41: '/metronome/dec_bpm', 42: '/metronome/inc_bpm', 43: '/metronome/tap',
+            44: '', 45: '', 46: '', 47: '',
+
+            # Long press
+            100: '/mode/preset', 101: '/mode/stomp', 102: '/mode/looper', 103: '/mode/metronome',
+            104: '/stomp/1/select', 105: '/stomp/2/select', 106: '/stomp/3/select', 107: '/stomp/4/select'
         }
 
     def _connect_midi(self, midi_controller):
