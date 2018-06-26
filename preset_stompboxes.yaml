@@ -8,31 +8,15 @@ preset:
     -
       lv2: "http://guitarix.sourceforge.net/plugins/gx_compressor#_compressor"
       parameters: []
-      connections: []
+      connections: [1]
     -
       lv2: "http://guitarix.sourceforge.net/plugins/gxts9#ts9sim"
       parameters: []
-      connections: []
-    -
-      lv2: "http://guitarix.sourceforge.net/plugins/gx_flanger#_flanger"
-      parameters: []
-      connections: []
+      connections: [2]
     -
       lv2: "http://guitarix.sourceforge.net/plugins/gx_tremolo#_tremolo"
       parameters: []
-      connections: []
-    -
-      lv2: "http://guitarix.sourceforge.net/plugins/gx_digital_delay_st_#_digital_delay_st_"
-      parameters: []
-      connections: []
-    -
-      lv2: "http://guitarix.sourceforge.net/plugins/gxautowah#autowah"
-      parameters: []
-      connections: []
-    -
-      lv2: "http://guitarix.sourceforge.net/plugins/gxmetal_head#metal_head"
-      parameters: [ ]
-      connections: [ ]
+      connections: [3]
     -
       lv2: "http://guitarix.sourceforge.net/plugins/gx_amp#GUITARIX"
       parameters: [ ]
