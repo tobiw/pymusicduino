@@ -179,9 +179,6 @@ class Plugin:
 
         self._load_plugin_info()
 
-        if self._name == 'Calf Multi Chorus':
-            self._has_stereo_output = self._has_stereo_input = True
-
     @property
     def name(self):
         return self._name
@@ -208,8 +205,8 @@ class Plugin:
 
     def _load_plugin_info(self):
         self._log.info('Getting plugin info for {}'.format(self._uri))
-        output = subprocess.check_output(['lv2info', self._uri])
-        lines = [l.decode('utf-8').strip() for l in output.splitlines()]
+        output = subprocess.check_output(['lv2info', self._uri]).decode('utf-8')
+        lines = [l.strip() for l in output.splitlines()]
         # self._log.debug('lv2info output: ' + str(lines))
         for l in lines:
             if l.startswith('Name:'):
@@ -218,6 +215,12 @@ class Plugin:
                 self._class = l.split(':', 1)[-1].strip()
                 break
         self._log.debug('Found plugin class/name: {}/{}'.format(self._class, self._name))
+
+        # Determine stereo input and output
+        if 'in_l' in output and 'in_r' in output:
+            self._has_stereo_input = True
+        if 'out_l' in output and 'out_r' in output:
+            self._has_stereo_output = True
 
         # Parse ports (parameters)
         parameter_sections = []

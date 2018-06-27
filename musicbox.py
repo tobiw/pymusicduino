@@ -81,6 +81,11 @@ class MusicBox:
         plugins = [Plugin(sb['lv2'], sb['connections']) for sb in data['preset']['stompboxes']]
         pb = PedalboardGraph(plugins)
 
+        # Disable stompboxes if configured
+        for i, sb in enumerate(data['preset']['stompboxes']):
+            if 'enabled' in sb:
+                plugins[i].is_enabled = sb['enabled']
+
         # Assign index to each node
         for p in pb.nodes:
             p._index = pb.get_index(p)
@@ -105,6 +110,11 @@ class MusicBox:
         for node in self._pedalboard.nodes:
             self._log.info("mod-host: add effect " + str(node))
             self._modhost.add_effect(node)
+
+        # Disable (bypass) plugins if set to not enabled
+        for node in self._pedalboard.nodes:
+            if not node.is_enabled:
+                self._modhost.bypass_effect(node)
 
         # Store info about stereo connections of neighbouring nodes
         output_stereo = [n.has_stereo_output for n in self._pedalboard.nodes]
@@ -135,8 +145,8 @@ class MusicBox:
         value += param_info['Minimum']
         value = int(value)
 
-        self._log.info('Setting stomp #{:d} param #{:d} "{:s}" to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, value, min_max_ratio))
-        self._modhost.set_parameter(stompbox, param_name, value)
+        self._log.info('Setting stomp #{:d} param #{:d} "{:s}" [{:s}] to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, param_info['Symbol'], value, min_max_ratio))
+        self._modhost.set_parameter(stompbox, param_info['Symbol'], value)
 
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
