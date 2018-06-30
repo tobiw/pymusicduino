@@ -8,6 +8,7 @@ from looper import Looper
 from metronome import Metronome
 from midisend import midisend
 from mod_host import ModHostClient, Plugin
+from notifier import TcpNotifier
 from osc_server import FootpedalOscServer
 from pedalboard_graph import PedalboardGraph
 
@@ -56,6 +57,10 @@ class MusicBox:
 
         # Looper object (using sooperlooper)
         self._looper = Looper()
+
+        # Notifiers
+        self._notifier = TcpNotifier()
+        self._log.info("STARTED TcpNotifier")
 
     def run(self):
         self._osc_server.start()
@@ -172,6 +177,7 @@ class MusicBox:
             self._metronome.enable(True)
 
         self._current_mode = self.OSC_MODES[mode]
+        self._notifier.update("MODE:{:d}".format(int(self._current_mode.value)))
 
     def cb_preset(self, uri, msg=None):
         """Handle incoming /preset/<N> OSC message"""
@@ -179,6 +185,7 @@ class MusicBox:
         assert 0 < preset_id < 100
         self._log.info("PRESET {:d}".format(preset_id))
         self._load_preset('preset0{:d}.yaml'.format(preset_id))
+        self._notifier.update("PRESET:{:d}".format(preset_id))
 
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
@@ -190,6 +197,7 @@ class MusicBox:
 
         if op == 'select':
             self._selected_stompbox = stomp_id
+            self._notifier.update("STOMPSEL:{:d}".format(self._selected_stompbox))
         elif op == 'enable':
             assert self._pedalboard
             p = self._pedalboard.get_node_from_index(stomp_id - 1)
