@@ -51,12 +51,15 @@ class MusicBox:
         ModHostClient.restart()
         time.sleep(1)
         self._modhost = ModHostClient()
+        self._log.info("STARTED mod-host client")
 
         # Metronome output (using klick)
         self._metronome = Metronome()
+        self._log.info("STARTED Metronome")
 
         # Looper object (using sooperlooper)
         self._looper = Looper()
+        self._log.info("STARTED Looper")
 
         # Notifiers
         self._notifier = TcpNotifier()
