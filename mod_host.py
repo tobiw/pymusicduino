@@ -192,6 +192,10 @@ class Plugin:
         return self._index
 
     @property
+    def parameters(self):
+        return self._parameters
+
+    @property
     def has_stereo_output(self):
         return self._has_stereo_output
 

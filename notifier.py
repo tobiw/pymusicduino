@@ -22,7 +22,7 @@ class TcpNotifier:
         while self._running:
             self._connection, addr = self._socket.accept()
             while True:
-                data = self._connection.recv(1024).decode()
+                data = self._connection.recv(100).decode()
                 if not data:
                     break
                 if data == 'PING':
@@ -33,7 +33,7 @@ class TcpNotifier:
 
     def update(self, msg):
         if self._connection:
-            self._connection.send(msg.encode())
+            self._connection.sendall(msg.encode())
 
 
 class Notifier:

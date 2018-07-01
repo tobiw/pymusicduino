@@ -158,10 +158,10 @@ class MusicBox:
         min_max_ratio = 1024 / (param_info['Maximum'] - param_info['Minimum'])
         value /= min_max_ratio
         value += param_info['Minimum']
-        value = int(value)
 
         self._log.info('Setting stomp #{:d} param #{:d} "{:s}" [{:s}] to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, param_info['Symbol'], value, min_max_ratio))
         self._modhost.set_parameter(stompbox, param_info['Symbol'], value)
+        self._notifier.update("SLIDER:{:d}:{:f}".format(int(slider_id) - 1, value))
 
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
@@ -196,33 +196,68 @@ class MusicBox:
         self._log.info("PRESET {:d}".format(preset_id))
         self._load_preset('preset0{:d}.yaml'.format(preset_id))
 
+        # Construct JSON payload for notifiers:
+        # current preset, list of stompboxes with parameters
         notifier_data = {
-            'preset': int(preset_id),
-            'stompboxes': [
-                {'name': 'test_sb', 'parameters': [{'symbol': 'fslider1', 'name': 'testparam', 'min': 0, 'max': 100, 'value': 100}]}
-            ]
+            'preset_id': int(preset_id),
+            'preset_name': self._pedalboard.settings['name'],
+            'stompboxes': []
         }
+
+        # Loop over all stompboxes (nodes on pedalboard graph)
+        for sb in self._pedalboard.nodes:
+            sb_data = {
+                'name': sb.name,
+                'parameters': []
+            }
+
+            # Loop over stombox's parameters
+            for p in sb.parameters:  # p is { 'NAME': { params } }
+                assert len(p.keys()) == 1
+                p_name = list(p.keys())[0]
+                param_data = {
+                    'name': p_name,
+                    'symbol': p[p_name]['Symbol'],
+                    'min': p[p_name]['Minimum'],
+                    'max': p[p_name]['Maximum'],
+                    'value': p[p_name]['Default']  # TODO
+                }
+                sb_data['parameters'].append(param_data)
+
+            notifier_data['stompboxes'].append(sb_data)
+
+        self._log.debug("Sending JSON: " + json.dumps(notifier_data))
         self._notifier.update("PRESET:" + json.dumps(notifier_data))
 
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
-        _, _, stomp_id, op = uri.split('/')
-        stomp_id = int(stomp_id)
-        self._log.debug('cb_stomp_{}: {:d}'.format(op, stomp_id))
+        uri_splits = uri.split('/')[2:]  # throw away leading "/" and "stomp"
+        assert 2 <= len(uri_splits) <= 3, uri_splits
+        stomp_id = int(uri_splits[0])
+        op = uri_splits[1]
+        value = int(uri_splits[2]) if len(uri_splits) == 3 else None
+
+        self._log.debug('cb_stomp_{}: {:d} (value {!s})'.format(op, stomp_id, value))
         assert 0 < stomp_id < 10
         assert op in ['enable', 'select']
 
         if op == 'select':
             self._selected_stompbox = stomp_id
-            self._notifier.update("STOMPSEL:{:d}".format(self._selected_stompbox))
+            self._notifier.update("STOMPSEL:{:d}".format(self._selected_stompbox - 1))
         elif op == 'enable':
             assert self._pedalboard
             p = self._pedalboard.get_node_from_index(stomp_id - 1)
             if p:
                 assert p.index == stomp_id - 1
-                p.is_enabled = not p.is_enabled
+                if value is None:  # no value given: toggle internal state
+                    p.is_enabled = not p.is_enabled
+                else:
+                    p.is_enabled = bool(value)
+
                 self._log.info('STOMP {} "{}" ENABLE {:d}'.format(p.index, p.name, p.is_enabled))
                 self._modhost.bypass_effect(p)
+            else:
+                self._log.warn('cb_stomp_enable: node with index {:d} not in pedalboard'.format(stomp_id - 1))
 
     def cb_looper(self, uri, msg=None):
         """Handle incoming /looper OSC messages to be proxied to sooperlooper"""
