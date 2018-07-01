@@ -1,4 +1,5 @@
 import enum
+import json
 import logging
 import time
 import yaml
@@ -194,7 +195,14 @@ class MusicBox:
         assert 0 < preset_id < 100
         self._log.info("PRESET {:d}".format(preset_id))
         self._load_preset('preset0{:d}.yaml'.format(preset_id))
-        self._notifier.update("PRESET:{:d}".format(preset_id))
+
+        notifier_data = {
+            'preset': int(preset_id),
+            'stompboxes': [
+                {'name': 'test_sb', 'parameters': [{'symbol': 'fslider1', 'name': 'testparam', 'min': 0, 'max': 100, 'value': 100}]}
+            ]
+        }
+        self._notifier.update("PRESET:" + json.dumps(notifier_data))
 
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
@@ -241,6 +249,9 @@ class MusicBox:
 
         if command == 'pause':
             self._metronome.enable(not self._metronome.is_running)
+        elif command == 'set_bpm':
+            assert len(uri_splits) == 4
+            self._metronome.set_bpm(int(uri_splits[3]))
         elif command == 'inc_bpm':
             self._metronome.set_bpm(self._metronome.bpm + 8)
         elif command == 'dec_bpm':
@@ -248,7 +259,9 @@ class MusicBox:
         elif command == 'tap':
             self._metronome.tap()
 
-        midisend(2, self._metronome.get_bpm())
+        bpm = self._metronome.get_bpm()
+        midisend(2, bpm)
+        self._notifier.update("BPM:{:d}".format(bpm))
 
     def cb_slider(self, uri, msg=None):
         """Handle incoming /slider/<N> OSC message"""
