@@ -40,7 +40,10 @@ class MusicBox:
         self._last_slider_update_time = 0
 
         # OSC inputs (footpedal)
-        self._midi_to_osc = MidiToOsc('Arduino Micro')  # works via callbacks, so not blocking
+        try:
+            self._midi_to_osc = MidiToOsc('Arduino Micro')  # works via callbacks, so not blocking
+        except ValueError as e:
+            self._log.error('Failed to start Midi Footpedal: ' + str(e))
 
         # OSC server (receives inputs)
         self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset,

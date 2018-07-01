@@ -64,7 +64,9 @@ class MidiToOsc:
 
         # Find the MIDI In port the Arduino Micro is connected to
         arduino_port = find_port([self._midi_in.getPortName(i) for i in range(self._midi_in.getPortCount())], midi_controller)
-        assert arduino_port is not None
+        if arduino_port is None:
+            raise ValueError('Could not find "Arduino Micro" MIDI port')
+
         print("MidiIn connecting to {}".format(arduino_port))
         self._midi_in.openPort(arduino_port)
 
