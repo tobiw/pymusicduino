@@ -187,15 +187,12 @@ class MusicBox:
             self._metronome.enable(True)
 
         self._current_mode = self.OSC_MODES[mode]
+
         self._notifier.update("MODE:{:d}".format(int(self._current_mode.value)))
+        if self._current_mode == Mode.STOMP:
+            self._preset_info_notifier_update(0)
 
-    def cb_preset(self, uri, msg=None):
-        """Handle incoming /preset/<N> OSC message"""
-        preset_id = int(uri.rsplit('/', 1)[-1])
-        assert 0 < preset_id < 100
-        self._log.info("PRESET {:d}".format(preset_id))
-        self._load_preset('preset0{:d}.yaml'.format(preset_id))
-
+    def _preset_info_notifier_update(self, preset_id):
         # Construct JSON payload for notifiers:
         # current preset, list of stompboxes with parameters
         notifier_data = {
@@ -228,6 +225,14 @@ class MusicBox:
 
         self._log.debug("Sending JSON: " + json.dumps(notifier_data))
         self._notifier.update("PRESET:" + json.dumps(notifier_data))
+
+    def cb_preset(self, uri, msg=None):
+        """Handle incoming /preset/<N> OSC message"""
+        preset_id = int(uri.rsplit('/', 1)[-1])
+        assert 0 < preset_id < 100
+        self._log.info("PRESET {:d}".format(preset_id))
+        self._load_preset('preset0{:d}.yaml'.format(preset_id))
+        self._preset_info_notifier_update(preset_id)
 
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
