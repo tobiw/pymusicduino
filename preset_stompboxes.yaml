@@ -18,6 +18,10 @@ preset:
       parameters: []
       connections: [3]
     -
+      lv2: "http://guitarix.sourceforge.net/plugins/gx_chorus_stereo#_chorus_stereo"
+      parameters: []
+      connections: [4]
+    -
       lv2: "http://guitarix.sourceforge.net/plugins/gx_amp#GUITARIX"
       parameters: [ ]
       connections: [ ]
