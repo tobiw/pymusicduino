@@ -76,6 +76,29 @@ class MusicBox:
         except KeyboardInterrupt:
             self._osc_server.stop()
 
+    def _set_mode(self, mode):
+        midisend(1, mode.value)
+
+        # Action when leaving mode
+        if mode != Mode.LOOPER:
+            self._looper.enable(False)
+        if mode != Mode.METRONOME:
+            self._metronome.enable(False)
+
+        # Action based on activated mode
+        if mode == Mode.PRESET:
+            pass
+        elif mode == Mode.STOMP:
+            self._load_preset('preset_stompboxes.yaml', 0)
+        elif mode == Mode.LOOPER:
+            self._looper.enable(True)
+        elif mode == Mode.METRONOME:
+            self._metronome.enable(True)
+
+        self._current_mode = mode
+
+        self._notifier.update("MODE:{:d}".format(int(self._current_mode.value)))
+
     def _create_graph_from_config(self, filename):
         """
         Loads a YAML file (could easily support JSON as well) and creates
@@ -114,7 +137,7 @@ class MusicBox:
         pb.settings = settings
         return pb
 
-    def _load_preset(self, yaml_file):
+    def _load_preset(self, yaml_file, preset_id):
         # Cleanup existing pedalboard in mod-host
         self._modhost.remove_all_effects()
 
@@ -145,6 +168,9 @@ class MusicBox:
         if self._pedalboard.nodes[0].name == 'GxTubeScreamer':
             self._modhost.set_parameter(self._pedalboard.nodes[0], 'fslider0_', 0)
 
+        # Notifications
+        self._preset_info_notifier_update(preset_id)
+
     def _handle_slider_stompbox(self, slider_id, value):
         stompbox = self._pedalboard.nodes[self._selected_stompbox - 1]
         param_name, param_info = stompbox.get_parameter_info_by_index(slider_id - 1)
@@ -168,29 +194,7 @@ class MusicBox:
         mode = uri.rsplit('/', 1)[-1]
         assert mode in self.OSC_MODES.keys()
         self._log.info("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
-        midisend(1, self.OSC_MODES[mode].value)
-
-        # Action when leaving mode
-        if self.OSC_MODES[mode] != Mode.LOOPER:
-            self._looper.enable(False)
-        if self.OSC_MODES[mode] != Mode.METRONOME:
-            self._metronome.enable(False)
-
-        # Action based on activated mode
-        if self.OSC_MODES[mode] == Mode.PRESET:
-            pass
-        elif self.OSC_MODES[mode] == Mode.STOMP:
-            self._load_preset('preset_stompboxes.yaml')
-        elif self.OSC_MODES[mode] == Mode.LOOPER:
-            self._looper.enable(True)
-        elif self.OSC_MODES[mode] == Mode.METRONOME:
-            self._metronome.enable(True)
-
-        self._current_mode = self.OSC_MODES[mode]
-
-        self._notifier.update("MODE:{:d}".format(int(self._current_mode.value)))
-        if self._current_mode == Mode.STOMP:
-            self._preset_info_notifier_update(0)
+        self._set_mode(self.OSC_MODES[mode])
 
     def _preset_info_notifier_update(self, preset_id):
         # Construct JSON payload for notifiers:
@@ -231,8 +235,7 @@ class MusicBox:
         preset_id = int(uri.rsplit('/', 1)[-1])
         assert 0 < preset_id < 100
         self._log.info("PRESET {:d}".format(preset_id))
-        self._load_preset('preset0{:d}.yaml'.format(preset_id))
-        self._preset_info_notifier_update(preset_id)
+        self._load_preset('preset0{:d}.yaml'.format(preset_id), preset_id)
 
     def cb_stomp_enable(self, uri, msg=None):
         """Handle incoming /stomp/<N>/enable OSC message"""
