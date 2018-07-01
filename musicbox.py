@@ -69,8 +69,11 @@ class MusicBox:
         self._log.info("STARTED TcpNotifier")
 
     def run(self):
-        self._osc_server.start()
-        self._osc_server._thread.join()
+        try:
+            self._osc_server.start()
+            self._osc_server._thread.join()
+        except KeyboardInterrupt:
+            self._osc_server.stop()
 
     def _create_graph_from_config(self, filename):
         """
