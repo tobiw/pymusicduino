@@ -1,3 +1,4 @@
+import logging
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
 
@@ -13,6 +14,7 @@ class TcpNotifier:
     def __init__(self):
         self._running = True
         self._connection = None
+        self._log = logging.getLogger('musicbox.TcpNotifier')
 
         self._socket = _open_socket_bind_listen(9955)
         self._thread = Thread(target=self._serve)
@@ -20,9 +22,17 @@ class TcpNotifier:
 
     def _serve(self):
         while self._running:
+            self._log.info('Ready to accept connection')
             self._connection, addr = self._socket.accept()
+            self._log.info('Incoming connection from ' + str(addr))
+
             while True:
-                data = self._connection.recv(100).decode()
+                try:
+                    data = self._connection.recv(100).decode()
+                except ConnectionResetError:
+                    self._log.error('Connection broken')
+                    break
+
                 if not data:
                     break
                 if data == 'PING':
@@ -35,8 +45,10 @@ class TcpNotifier:
         """Sends datalength packet and as many data packets as required"""
         msg_enc = msg.encode()
         datalen_msg = 'DATALEN:' + str(len(msg_enc))
-        self._connection.send(datalen_msg.encode())
+        self._log.debug('Sending datalen message: ' + datalen_msg)
         if self._connection:
+            self._connection.send(datalen_msg.encode())
+            self._log.debug('Sending update notification "{:s}..." of length {:d}'.format(msg[:min(10, len(msg))], len(msg_enc)))
             self._connection.sendall(msg_enc)
 
 
