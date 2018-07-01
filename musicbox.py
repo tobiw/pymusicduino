@@ -264,6 +264,7 @@ class MusicBox:
 
                 self._log.info('STOMP {} "{}" ENABLE {:d}'.format(p.index, p.name, p.is_enabled))
                 self._modhost.bypass_effect(p)
+                self._notifier.update("STOMPEN:{:d}:{:d}".format(p.index, int(p.is_enabled)))
             else:
                 self._log.warn('cb_stomp_enable: node with index {:d} not in pedalboard'.format(stomp_id - 1))
 

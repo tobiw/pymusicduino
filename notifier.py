@@ -48,7 +48,7 @@ class TcpNotifier:
         self._log.debug('Sending datalen message: ' + datalen_msg)
         if self._connection:
             self._connection.send(datalen_msg.encode())
-            self._log.debug('Sending update notification "{:s}..." of length {:d}'.format(msg[:min(10, len(msg))], len(msg_enc)))
+            self._log.debug('Sending update notification "{:s}..." of length {:d}'.format(msg[:min(20, len(msg))], len(msg_enc)))
             self._connection.sendall(msg_enc)
 
 
