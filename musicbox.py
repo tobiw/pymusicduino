@@ -69,6 +69,12 @@ class MusicBox:
         self._notifier = TcpNotifier()
         self._log.info("STARTED TcpNotifier")
 
+        time.sleep(5)
+
+        # Initialize: set mode PRESET and load preset1
+        self._set_mode(Mode.PRESET)
+        self._load_preset('preset01.yaml', 1)
+
     def run(self):
         try:
             self._osc_server.start()
