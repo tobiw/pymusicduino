@@ -32,8 +32,12 @@ class TcpNotifier:
             self._connection.close()
 
     def update(self, msg):
+        """Sends datalength packet and as many data packets as required"""
+        msg_enc = msg.encode()
+        datalen_msg = 'DATALEN:' + str(len(msg_enc))
+        self._connection.send(datalen_msg.encode())
         if self._connection:
-            self._connection.sendall(msg.encode())
+            self._connection.sendall(msg_enc)
 
 
 class Notifier:
