@@ -16,6 +16,10 @@ from pedalboard_graph import PedalboardGraph
 
 logger = logging.getLogger('musicbox')
 logger.setLevel(logging.DEBUG)
+filehandler = logging.FileHandler('/var/log/musicbox.log')
+filehandler.setLevel(logging.DEBUG)
+filehandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(filehandler)
 con_handler = logging.StreamHandler()
 con_handler.setLevel(logging.DEBUG)
 con_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
