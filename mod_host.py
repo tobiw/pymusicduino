@@ -1,8 +1,5 @@
 import logging
-import socket
 import subprocess
-
-import jack_connections
 
 
 """
@@ -134,35 +131,6 @@ quit
 """
 
 
-class ModHostSocket:
-    """
-    Socket connection to mod-host instance (UDP port 5555).
-    """
-    def __init__(self):
-        self._socket = socket.socket()
-        self._log = logging.getLogger('musicbox.ModHostSocket')
-
-    def connect(self):
-        self._socket.connect(('localhost', 5555))
-        self._socket.settimeout(0.5)
-
-    def close(self):
-        self._socket.close()
-
-    def send(self, c):
-        c += '\0'  # required for mod-host to recognize the command
-        c = c.encode('utf-8')
-        self._log.debug('sending command: "{!s}"'.format(c))
-        self._socket.send(c)
-        resp = self._socket.recv(1024)
-        resp = resp.decode('utf-8').strip().replace('\0', '').split()[1:]
-        self._log.debug(resp)
-        if resp and int(resp[0]) < 0:  # error
-            raise RuntimeError('Response from command "{}" was {}'.format(c, str(resp)))
-        # resp = self._socket.recv(1024)
-        return resp
-
-
 class Plugin:
     def __init__(self, uri, connections=None):
         self._log = logging.getLogger('musicbox.Plugin')
@@ -261,123 +229,14 @@ class Plugin:
                 self._parameters.append({port_name: port_info})
         self._log.debug('Found plugin parameters: ' + str(self._parameters))
 
-    def get_all_parameters(self):
-        params = {}
-        for s in [p['symbol'] for p in self._parameters]:
-            try:
-                params[s] = self.get_parameter(s)
-            except RuntimeError:
-                pass
-        return params
 
-
-class ModHostClient:
-    """
-    A client program making use of the socket connection to mod-host to control and query it.
-    """
-    def __init__(self):
-        """Initialize mod-host socket connection and list of plugins"""
-        self._log = logging.getLogger('musicbox.ModHostClient')
-
-        self._socket = ModHostSocket()
-        self._socket.connect()
-        self._log.info('mod-host socket connected')
-
-        self._available_plugins = self.list_plugins()
-        self._log.debug('List of plugins: ' + str(self._available_plugins))
-        self._installed_plugins = []
-
-    def close(self):
-        """Close socket connection"""
-        self._socket.close()
-        self._log.info('mod-host socket closed')
-
-    @classmethod
-    def restart(cls):
-        """Restart the mod-host daemon"""
-        subprocess.check_call(['systemctl', 'restart', 'mod-host'])
-
-    def list_plugins(self):
-        """Use lv2ls to get dict of all available LV2 plugins (name: uri)"""
-        plugins = {}
-        output = subprocess.check_output(['lv2ls'])
-        for l in [x.decode('utf-8') for x in output.splitlines()]:
-            name = l.rsplit('/', 1)[-1]
-            if '#' in name:
-                name = name.split('#', 1)[0]
-            plugins[name] = l
-        return plugins
-
-    def disconnect_all_effects(self):
-        """Run disconnect command on all ports in mod-host"""
-        for outport, inports in jack_connections.get_connections().iteritems():
-            if not any(p in outport for p in ['capture', ':out']):  # skip if outport is not actually capture or effect output
-                continue
-            for inport in inports:
-                self._log.info('Disconnecting ports {} {}'.format(outport, inport))
-                self._socket.send('disconnect {} {}'.format(outport, inport))
-
-    def remove_all_effects(self):
-        """Remove all effects from mod-host (also removes all connections)"""
-        for line in [l for l in jack_connections.get_connections().keys() if l.startswith('effect_')]:  # look at effects only
-            i = line.split(':', 1)[0].split('_', 1)[-1]  # get index by splitting effect_... name
-            self._log.info('Removing effect {}'.format(i))
-            self._socket.send('remove {}'.format(i))
-        self._installed_plugins = []
-
-    def add_effect(self, p):
-        """Load and install effect in mod-host"""
-        self._socket.send('add {} {}'.format(p.uri, p.index))
-        self._log.info('Plugin "{}" added: index {:d}'.format(p.name, p.index))
-
-    def remove_effect(self, p):
-        """Remove effect from mod-host (doesn't affect any existing effect indices)"""
-        self._socket.send('remove {}'.format(p.index))
-        self._log.info('Plugin "{}" removed'.format(p.name))
-
-    def connect_effect(self, p, connect_from, connect_to, connect_from_stereo, connect_to_stereo):
-        """Connect the in and out ports of the effect"""
-        self._log.info('Plugin "{}": connecting from {} to {}'.format(p.name, connect_from, connect_to))
-
-        # Stereo suffix for current effect p
-        input_suffix = 'in_l' if p.has_stereo_input else 'in'
-        output_suffix = 'out_l' if p.has_stereo_output else 'out'
-
-        # If connection is empty, use system capture or playback.
-        if connect_from is None or connect_from == []:
-            connect_from = ['system:capture_1']
-        else:
-            # connect_from contains numerical ID of neighbour node
-            # Transform to effect_...:out string
-            connect_from = ['effect_{:d}:out{:s}'.format(c, '_l' if connect_from_stereo[c] else '') for c in connect_from]
-
-        if connect_to is None or connect_to == []:
-            connect_to = ['system:playback_1']
-        else:
-            connect_to = ['effect_{:d}:in{:s}'.format(c, '_l' if connect_to_stereo[c] else '') for c in connect_to]
-
-        self._log.debug('For effect {:s}: adjusted connect_from: {!s}'.format(p.name, connect_from))
-        self._log.debug('For effect {:s}: adjusted connect_to: {!s}'.format(p.name, connect_to))
-
-        # Connect each incoming port
-        for port in connect_from:
-            self._socket.send('connect {in_port} effect_{idx}:{in_suffix}'.format(
-                in_port=port, idx=p.index, in_suffix=input_suffix))
-
-        # Connect each outgoing port
-        for port in connect_to:
-            self._socket.send('connect effect_{idx}:{out_suffix} {out_port}'.format(
-                idx=p.index, out_port=port, out_suffix=output_suffix))
-
-    def bypass_effect(self, p):
-        self._log.info('Plugin "{}": setting bypass {}'.format(p.name, 'enable' if not p.is_enabled else 'disable'))
-        self._socket.send('bypass {} {}'.format(p.index, 1 if not p.is_enabled else 0))
-
-    def set_parameter(self, p, symbol, value):
-        self._log.info('Plugin "{}": setting "{:s}" to {!s}'.format(p.name, symbol, value))
-        return self._socket.send('param_set {} {} {}'.format(p.index, symbol, value))
-
-    def get_parameter(self, p, symbol):
-        r = float(self._socket.send('param_get {} {}'.format(p.index, symbol))[1])
-        self._log.info('Plugin "{}": "{:s}" is {!s}'.format(p.name, symbol, r))
-        return r
+def list_plugins(self):
+    """Use lv2ls to get dict of all available LV2 plugins (name: uri)"""
+    plugins = {}
+    output = subprocess.check_output(['lv2ls'])
+    for l in [x.decode('utf-8') for x in output.splitlines()]:
+        name = l.rsplit('/', 1)[-1]
+        if '#' in name:
+            name = name.split('#', 1)[0]
+        plugins[name] = l
+    return plugins

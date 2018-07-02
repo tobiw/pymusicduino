@@ -8,10 +8,17 @@ from footpedal import MidiToOsc
 from looper import Looper
 from metronome import Metronome
 from midisend import midisend
-from mod_host import ModHostClient, Plugin
+from mod_host import Plugin
 from notifier import TcpNotifier
 from osc_server import FootpedalOscServer
 from pedalboard_graph import PedalboardGraph
+
+from pluginsmanager.banks_manager import BanksManager
+from pluginsmanager.observer.mod_host.mod_host import ModHost  # TODO: add other observers
+from pluginsmanager.model.bank import Bank
+from pluginsmanager.model.pedalboard import Pedalboard
+from pluginsmanager.model.lv2.lv2_effect_builder import Lv2EffectBuilder
+from pluginsmanager.model.system.system_effect import SystemEffect
 
 
 logger = logging.getLogger('musicbox')
@@ -56,9 +63,11 @@ class MusicBox:
                                               self.cb_looper, self.cb_metronome, self.cb_slider)
 
         # mod-host LV2 host (output)
-        ModHostClient.restart()
-        time.sleep(1)
-        self._modhost = ModHostClient()
+        self._bank_manager = BanksManager()
+        self._bank_manager.append(Bank('Bank 1'))  # TODO: load banks from stored files
+        self._modhost = ModHost('localhost')
+        self._modhost.connect()
+        self._bank_manager.register(self._modhost)
         self._log.info("STARTED mod-host client")
 
         # Metronome output (using klick)
@@ -149,40 +158,46 @@ class MusicBox:
 
     def _load_preset(self, yaml_file, preset_id):
         # Cleanup existing pedalboard in mod-host
-        self._modhost.remove_all_effects()
+        for e in list(self._modhost.effects):
+            self._modhost.remove(e)
 
-        # Create plugins which will add them to the board
-        self._pedalboard = self._create_graph_from_config(yaml_file)
+        # Create graph with effect plugin objects
+        self._graph = self._create_graph_from_config(yaml_file)
+
+        # Create PedalPi pedalboard and add to bank and mod-host
+        self._pedalboard = Pedalboard(self._graph.settings['name'])
+        self._bank_manager.banks[0].append(self._pedalboard)
+        self._modhost.pedalboard = self._pedalboard
 
         # Add nodes (effects) to mod-host
-        for node in self._pedalboard.nodes:
+        lv2_builder = Lv2EffectBuilder()
+        for node in self._graph.nodes:  # loop over Plugin objects
             self._log.info("mod-host: add effect " + str(node))
-            self._modhost.add_effect(node)
+            node.effect = lv2_builder.build(node.uri)
+            self._pedalboard.effects.append(node.effect)
+            node.effect.active = node.is_enabled
 
-        # Disable (bypass) plugins if set to not enabled
-        for node in self._pedalboard.nodes:
-            if not node.is_enabled:
-                self._modhost.bypass_effect(node)
+        sys_effect = SystemEffect('system', ['capture_1', 'capture_2'], ['playback_1', 'playback_2'])
 
-        # Store info about stereo connections of neighbouring nodes
-        output_stereo = [n.has_stereo_output for n in self._pedalboard.nodes]
-        input_stereo = [n.has_stereo_input for n in self._pedalboard.nodes]
+        # Connect system capture to first effect
+        self._pedalboard.connect(sys_effect.outputs[0], self._pedalboard.effects[0].inputs[0])
 
         # Add edges (connections) to mod-host
-        for node in self._pedalboard.nodes:
+        for node in self._graph.nodes:  # looper over Plugin objects
             incoming = self._pedalboard.get_incoming_edges(node)
             outgoing = self._pedalboard.get_outgoing_edges(node)
             self._log.info('mod-host: add connection {!s} -> [{:d}] "{:s}" -> {!s}'.format(incoming, node.index, node.name, outgoing))
-            self._modhost.connect_effect(node, incoming, outgoing, output_stereo, input_stereo)
 
-        if self._pedalboard.nodes[0].name == 'GxTubeScreamer':
-            self._modhost.set_parameter(self._pedalboard.nodes[0], 'fslider0_', 0)
+            # Go through outgoing edges (indices)
+            for e in self._graph.get_outgoing_edges(node):  # looper over edge indices
+                # Connect current effect to effect given by index e
+                self._pedalboard.connect(node.effect.outputs[0], self._graph.get_node_from_index(e).effect.inputs[0])  # TODO: stereo
 
         # Notifications
         self._preset_info_notifier_update(preset_id)
 
     def _handle_slider_stompbox(self, slider_id, value):
-        stompbox = self._pedalboard.nodes[self._selected_stompbox - 1]
+        stompbox = self._graph.nodes[self._selected_stompbox - 1]  # select by index from list of Plugin objects
         param_name, param_info = stompbox.get_parameter_info_by_index(slider_id - 1)
         if param_name is None:
             self._log.info('{!s} has no parameter for slider {:d}'.format(stompbox, slider_id))
@@ -196,7 +211,7 @@ class MusicBox:
         value += param_info['Minimum']
 
         self._log.info('Setting stomp #{:d} param #{:d} "{:s}" [{:s}] to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, param_info['Symbol'], value, min_max_ratio))
-        self._modhost.set_parameter(stompbox, param_info['Symbol'], value)
+        stompbox.effect.set_parameter()  # TODO: set param_info['Symbol'] to value
         self._notifier.update("SLIDER:{:d}:{:f}".format(int(slider_id) - 1, value))
 
     def cb_mode(self, uri, msg=None):
@@ -211,12 +226,12 @@ class MusicBox:
         # current preset, list of stompboxes with parameters
         notifier_data = {
             'preset_id': int(preset_id),
-            'preset_name': self._pedalboard.settings['name'],
+            'preset_name': self._graph.settings['name'],
             'stompboxes': []
         }
 
         # Loop over all stompboxes (nodes on pedalboard graph)
-        for sb in self._pedalboard.nodes:
+        for sb in self._graph.nodes:
             sb_data = {
                 'name': sb.name,
                 'parameters': []
@@ -263,8 +278,9 @@ class MusicBox:
             self._selected_stompbox = stomp_id
             self._notifier.update("STOMPSEL:{:d}".format(self._selected_stompbox - 1))
         elif op == 'enable':
+            assert self._graph
             assert self._pedalboard
-            p = self._pedalboard.get_node_from_index(stomp_id - 1)
+            p = self._graph.get_node_from_index(stomp_id - 1)
             if p:
                 assert p.index == stomp_id - 1
                 if value is None:  # no value given: toggle internal state
@@ -273,7 +289,7 @@ class MusicBox:
                     p.is_enabled = bool(value)
 
                 self._log.info('STOMP {} "{}" ENABLE {:d}'.format(p.index, p.name, p.is_enabled))
-                self._modhost.bypass_effect(p)
+                p.effect.active = p.is_enabled
                 self._notifier.update("STOMPEN:{:d}:{:d}".format(p.index, int(p.is_enabled)))
             else:
                 self._log.warn('cb_stomp_enable: node with index {:d} not in pedalboard'.format(stomp_id - 1))
