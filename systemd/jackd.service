@@ -1,0 +1,13 @@
+[Unit]
+Description=JACK audio service
+
+[Service]
+Type=forking
+ExecStart=/root/pymusicduino/systemd/start-jack.sh start
+ExecStop=/root/pymusicduino/systemd/start-jack.sh stop
+StandardOutput=null
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=jackd.service

@@ -1,0 +1,13 @@
+[Unit]
+Description=sooperlooper service
+After=jackd.service
+
+[Service]
+Type=forking
+ExecStart=/root/pymusicduino/systemd/start-looper.sh start
+ExecStop=/root/pymusicduino/systemd/start-looper.sh stop
+StandardOutput=null
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

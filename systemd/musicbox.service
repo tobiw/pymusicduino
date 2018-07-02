@@ -1,0 +1,13 @@
+[Unit]
+Description=mod-host service
+After=mod-host.service
+
+[Service]
+Type=forking
+ExecStart=/root/pymusicduino/systemd/start-musicbox.sh start
+ExecStop=/root/pymusicduino/systemd/start-musicbox.sh stop
+StandardOutput=journal
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -5,7 +5,7 @@ PIDFILE=/var/run/sooperlooper.pid
 function sooperlooper_start()
 {
   # sooperlooper -c 1 -m /root/sooperlooper.slb &
-  start-stop-daemon --start -b --oknodo --make-pidfile --pidfile $PIDFILE --exec /usr/bin/sooperlooper
+  start-stop-daemon --start -b --oknodo --make-pidfile --pidfile $PIDFILE --exec /usr/bin/sooperlooper -- -c 1 -t 300
   sleep 3
   /usr/bin/jack_connect system:capture_1 sooperlooper:loop0_in_1
   /usr/bin/jack_connect sooperlooper:loop0_out_1 system:playback_1

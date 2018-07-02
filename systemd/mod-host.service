@@ -1,0 +1,13 @@
+[Unit]
+Description=mod-host service
+After=jackd.service
+
+[Service]
+Type=forking
+ExecStart=/root/pymusicduino/systemd/start-mod-host.sh start
+ExecStop=/root/pymusicduino/systemd/start-mod-host.sh stop
+StandardOutput=null
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
