@@ -68,6 +68,7 @@ class MusicBox:
         self._modhost = ModHost('localhost')
         self._modhost.connect()
         self._bank_manager.register(self._modhost)
+        self._pedalboard = None
         self._log.info("STARTED mod-host client")
 
         # Metronome output (using klick)
@@ -82,11 +83,11 @@ class MusicBox:
         self._notifier = TcpNotifier()
         self._log.info("STARTED TcpNotifier")
 
-        time.sleep(5)
-
         # Initialize: set mode PRESET and load preset1
-        self._set_mode(Mode.PRESET)
-        self._load_preset('preset01.yaml', 1)
+        if False:
+            time.sleep(5)
+            self._set_mode(Mode.PRESET)
+            self._load_preset('preset01.yaml', 1)
 
     def run(self):
         try:
@@ -157,12 +158,16 @@ class MusicBox:
         return pb
 
     def _load_preset(self, yaml_file, preset_id):
-        # Cleanup existing pedalboard in mod-host
-        for e in list(self._modhost.effects):
-            self._modhost.remove(e)
-
         # Create graph with effect plugin objects
         self._graph = self._create_graph_from_config(yaml_file)
+
+        # Cleanup existing pedalboard in mod-host
+        if self._pedalboard is not None:
+            for e in list(self._pedalboard.effects):
+                for c in list(e.connections):   # TODO: not working
+                    self._pedalboard.disconnect(c)
+                self._pedalboard.effects.remove(e)
+            del self._pedalboard
 
         # Create PedalPi pedalboard and add to bank and mod-host
         self._pedalboard = Pedalboard(self._graph.settings['name'])
@@ -175,7 +180,8 @@ class MusicBox:
             self._log.info("mod-host: add effect " + str(node))
             node.effect = lv2_builder.build(node.uri)
             self._pedalboard.effects.append(node.effect)
-            node.effect.active = node.is_enabled
+            node.effect.active = not node.is_enabled
+            assert node.is_enabled != node.effect.active, 'node.is_enabled {!s} / node.effect.active {!s}'.format(node.is_enabled, node.effect.active)
 
         sys_effect = SystemEffect('system', ['capture_1', 'capture_2'], ['playback_1', 'playback_2'])
 
@@ -184,14 +190,17 @@ class MusicBox:
 
         # Add edges (connections) to mod-host
         for node in self._graph.nodes:  # looper over Plugin objects
-            incoming = self._pedalboard.get_incoming_edges(node)
-            outgoing = self._pedalboard.get_outgoing_edges(node)
+            incoming = self._graph.get_incoming_edges(node)
+            outgoing = self._graph.get_outgoing_edges(node)
             self._log.info('mod-host: add connection {!s} -> [{:d}] "{:s}" -> {!s}'.format(incoming, node.index, node.name, outgoing))
 
             # Go through outgoing edges (indices)
-            for e in self._graph.get_outgoing_edges(node):  # looper over edge indices
+            for e in outgoing:  # looper over edge indices
                 # Connect current effect to effect given by index e
                 self._pedalboard.connect(node.effect.outputs[0], self._graph.get_node_from_index(e).effect.inputs[0])  # TODO: stereo
+
+            if outgoing == []:
+                self._pedalboard.connect(node.effect.outputs[0], sys_effect.inputs[0])
 
         # Notifications
         self._preset_info_notifier_update(preset_id)
