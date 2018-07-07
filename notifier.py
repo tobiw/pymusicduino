@@ -41,7 +41,7 @@ class TcpNotifier:
                 if not data:
                     break
                 if data == 'PING':
-                    self._connection.send('PONG'.encode())
+                    self._connection.send('PONG\n'.encode())
                 elif data == 'QUIT':
                     break
             self._connection.close()
@@ -49,12 +49,12 @@ class TcpNotifier:
     def update(self, msg):
         """Sends datalength packet and as many data packets as required"""
         msg_enc = msg.encode()
-        datalen_msg = 'DATALEN:{:04d}'.format(len(msg_enc))
+        datalen_msg = 'DATALEN:{:04d}\n'.format(len(msg_enc))
         self._log.debug('Sending datalen message: ' + datalen_msg)
         if self._connection:
             self._connection.send(datalen_msg.encode())
             self._log.debug('Sending update notification "{:s}..." of length {:d}'.format(msg[:min(20, len(msg))], len(msg_enc)))
-            self._connection.sendall(msg_enc)
+            self._connection.sendall(msg_enc + b'\n')
 
 
 class Notifier:
