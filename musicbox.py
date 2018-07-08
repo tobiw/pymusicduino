@@ -233,8 +233,8 @@ class MusicBox:
         value += param_info['Minimum']
 
         self._log.info('Setting stomp #{:d} param #{:d} "{:s}" [{:s}] to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, param_info['Symbol'], value, min_max_ratio))
-        stompbox.effect.set_parameter()  # TODO: set param_info['Symbol'] to value
-        self._notifier.update("SLIDER:{:d}:{:f}".format(int(slider_id) - 1, value))
+        stompbox.effect.params[slider_id - 1].value = value
+        self._notifier.update("SLIDER:{:d}:{:f}".format(slider_id - 1, value))
 
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
