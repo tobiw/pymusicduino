@@ -320,8 +320,13 @@ class MusicBox:
         _, command = uri.rsplit('/', 1)
         cmd_fn = {
             'undo': self._looper.undo,
-            'record': self._looper.record,
-            'overdub': self._looper.overdub,
+            'redo': self._looper.redo,
+            'record': lambda: self._looper.record(insert=False),
+            'overdub': lambda: self._looper.overdub(multiply=False),
+            'mute_trigger': lambda: self._looper.mute(trigger=True),
+            'insert': lambda: self._looper.record(insert=True),
+            'multiply': lambda: self._looper.overdub(multiply=True),
+            'pause': self._looper.pause,
         }
         if command in cmd_fn:
             cmd_fn[command]()

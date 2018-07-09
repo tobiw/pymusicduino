@@ -43,8 +43,8 @@ class MidiToOsc:
             24: '/stomp/5/enable', 25: '/stomp/6/enable', 26: '/stomp/7/enable', 27: '/stomp/8/enable',
 
             # Looper
-            30: '/looper/undo', 31: '/looper/record', 32: '/looper/overdub', 33: '',
-            34: '', 35: '', 36: '', 37: '',
+            30: '/looper/undo', 31: '/looper/record', 32: '/looper/overdub', 33: '/looper/mute_trigger',
+            34: '/looper/redo', 35: '/looper/insert', 36: '/looper/multiply', 37: '/looper/pause',
 
             # Metronome
             40: '/metronome/pause', 41: '/metronome/dec_bpm', 42: '/metronome/inc_bpm', 43: '/metronome/tap',

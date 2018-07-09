@@ -18,8 +18,17 @@ class Looper:
     def undo(self):
         self._send_osc('undo')
 
-    def record(self):
-        self._send_osc('record')
+    def redo(self):
+        self._semd_osc('redo')
 
-    def overdub(self):
-        self._send_osc('overdub')
+    def record(self, insert=False):
+        self._send_osc('insert' if insert else 'record')
+
+    def overdub(self, multiply=False):
+        self._send_osc('multiply' if multiply else 'overdub')
+
+    def mute(self, trigger=False):
+        self._send_osc('mute_trigger' if trigger else 'mute')
+
+    def pause(self):
+        self._send_osc('pause')

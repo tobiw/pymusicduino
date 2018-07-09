@@ -46,7 +46,7 @@ class FootpedalOscServer(OscServer):
     - /stompbox/<N>/enable: enables/disables (toggles) a stompbox
     - /stompbox/<N>/select: selects a stompbox for editing
     - /slider/<N>/<V>: set slider <N> to value <V>
-    - /looper/<undo|record|overdub>: passed through to sooperlooper instance
+    - /looper/<cmd>: passed through to sooperlooper instance
     """
     def __init__(self, cb_mode, cb_preset, cb_stomp_enable, cb_stomp_select, cb_looper, cb_metronome, cb_slider):
         OscServer.__init__(self)
