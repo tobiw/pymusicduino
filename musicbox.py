@@ -211,12 +211,26 @@ class MusicBox:
             self._log.info('mod-host: add connection {!s} -> [{:d}] "{:s}" -> {!s}'.format(incoming, node.index, node.name, outgoing))
 
             # Go through outgoing edges (indices)
-            for e in outgoing:  # looper over edge indices
+            for e in outgoing:  # loop over edge indices
                 # Connect current effect to effect given by index e
-                pedalboard.connect(node.effect.outputs[0], graph.get_node_from_index(e).effect.inputs[0])  # TODO: stereo
+                neighbor = graph.get_node_from_index(e)
+                if node.has_stereo_output and neighbor.has_stereo_input:  # stereo to stereo
+                    pedalboard.connect(node.effect.outputs[0], neighbor.effect.inputs[0])
+                    pedalboard.connect(node.effect.outputs[1], neighbor.effect.inputs[1])
+                elif not node.has_stereo_output and neighbor.has_stereo_input:  # split mono to stereo
+                    pedalboard.connect(node.effect.outputs[0], neighbor.effect.inputs[0])
+                    pedalboard.connect(node.effect.outputs[0], neighbor.effect.inputs[1])
+                elif node.has_stereo_output and not neighbor.has_stereo_input:  # sum stereo to mono
+                    pedalboard.connect(node.effect.outputs[0], neighbor.effect.inputs[0])
+                    pedalboard.connect(node.effect.outputs[1], neighbor.effect.inputs[0])
+                else:  # mono to mono
+                    pedalboard.connect(node.effect.outputs[0], neighbor.effect.inputs[0])
 
             if outgoing == []:
-                pedalboard.connect(node.effect.outputs[0], sys_effect.inputs[0])
+                left_output = node.effect.outputs[0]
+                right_output = node.effect.outputs[1 if node.has_stereo_output else 0]
+                pedalboard.connect(left_output, sys_effect.inputs[0])
+                pedalboard.connect(right_output, sys_effect.inputs[1])
 
     def _handle_slider_stompbox(self, slider_id, value):
         stompbox = self._pedalboard.graph.nodes[self._selected_stompbox - 1]  # select by index from list of Plugin objects
