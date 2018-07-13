@@ -58,8 +58,7 @@ class MusicBox:
             self._log.error('Failed to start Midi Footpedal: ' + str(e))
 
         # OSC server (receives inputs)
-        self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset,
-                                              self.cb_stomp_enable, self.cb_stomp_enable,
+        self._osc_server = FootpedalOscServer(self.cb_mode, self.cb_preset, self.cb_stomp,
                                               self.cb_looper, self.cb_metronome, self.cb_slider)
 
         # mod-host LV2 host (output)
