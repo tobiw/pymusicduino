@@ -273,7 +273,8 @@ class MusicBox:
             }
 
             # Loop over stombox's parameters
-            for p in sb.parameters:  # p is { 'NAME': { params } }
+            assert len(sb.parameters) == len(sb.effect.parameters)
+            for i, p in enumerate(sb.parameters):  # p is { 'NAME': { params } }
                 assert len(p.keys()) == 1
                 p_name = list(p.keys())[0]
                 param_data = {
@@ -281,7 +282,7 @@ class MusicBox:
                     'symbol': p[p_name]['Symbol'],
                     'min': p[p_name]['Minimum'],
                     'max': p[p_name]['Maximum'],
-                    'value': p[p_name]['Default']  # TODO
+                    'value': sb.effect.parameters[i]
                 }
                 sb_data['parameters'].append(param_data)
 
