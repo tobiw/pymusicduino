@@ -8,10 +8,10 @@ from footpedal import MidiToOsc
 from looper import Looper
 from metronome import Metronome
 from midisend import midisend
-from mod_host import Plugin
 from notifier import TcpNotifier
 from osc_server import FootpedalOscServer
 from pedalboard_graph import PedalboardGraph
+from plugin import Lv2Plugin
 
 from pluginsmanager.banks_manager import BanksManager
 from pluginsmanager.observer.mod_host.mod_host import ModHost  # TODO: add other observers
@@ -138,7 +138,7 @@ class MusicBox:
 
         self._log.debug('yaml preset data: ' + str(data['preset']))
 
-        plugins = [Plugin(sb['lv2'], sb['connections']) for sb in data['preset']['stompboxes']]
+        plugins = [Lv2Plugin(sb['lv2'], sb['connections']) for sb in data['preset']['stompboxes']]
         pb = PedalboardGraph(plugins)
 
         # Disable stompboxes if configured
