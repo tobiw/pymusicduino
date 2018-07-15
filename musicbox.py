@@ -1,5 +1,4 @@
 import enum
-import json
 import logging
 import time
 import yaml
@@ -79,7 +78,8 @@ class MusicBox:
         self._log.info("STARTED Looper")
 
         # Notifiers
-        self._notifier = TcpNotifier()
+        self._tcp_notifier = TcpNotifier()
+        self._banks_manager.register(self._tcp_notifier)
         self._log.info("STARTED TcpNotifier")
 
         # Initialize: set mode PRESET and load preset1
@@ -95,7 +95,7 @@ class MusicBox:
         except KeyboardInterrupt:
             self._log.warn('KeyboardInterrupt: shutting down')
             self._osc_server.stop()
-            self._notifier.close()
+            self._tcp_notifier.close()
 
     def _set_mode(self, mode):
         midisend(1, mode.value)
@@ -118,7 +118,7 @@ class MusicBox:
 
         self._current_mode = mode
 
-        self._notifier.update("MODE:{:d}".format(int(self._current_mode.value)))
+        # self._notifier.update("MODE:{:d}".format(int(self._current_mode.value)))
 
     def _create_graph_from_config(self, filename):
         """
@@ -167,11 +167,11 @@ class MusicBox:
         self._log.info('Activated pedalboard {!s}'.format(self._pedalboard))
 
         # Notifications
-        self._preset_info_notifier_update(preset_id)
+        # self._preset_info_notifier_update(preset_id)
 
         for e in self._pedalboard.effects:
             e.toggle()
-            self._notifier.update("STOMPEN:{:d}:{:d}".format(e.index, int(e.active)))
+            # self._notifier.update("STOMPEN:{:d}:{:d}".format(e.index, int(e.active)))
 
     def _load_preset(self, yaml_file, remove_previous=False):
         # Create graph with effect plugin objects
@@ -247,7 +247,7 @@ class MusicBox:
 
         self._log.info('Setting stomp #{:d} param #{:d} "{:s}" [{:s}] to {} (ratio {})'.format(self._selected_stompbox, slider_id, param_name, param_info['Symbol'], value, min_max_ratio))
         stompbox.effect.params[slider_id - 1].value = value
-        self._notifier.update("SLIDER:{:d}:{:f}".format(slider_id - 1, value))
+        # self._notifier.update("SLIDER:{:d}:{:f}".format(slider_id - 1, value))
 
     def cb_mode(self, uri, msg=None):
         """Handle incoming /mode/... OSC message"""
@@ -255,41 +255,6 @@ class MusicBox:
         assert mode in self.OSC_MODES.keys()
         self._log.info("MODE {} -> {}".format(mode, self.OSC_MODES[mode]))
         self._set_mode(self.OSC_MODES[mode])
-
-    def _preset_info_notifier_update(self, preset_id):
-        # Construct JSON payload for notifiers:
-        # current preset, list of stompboxes with parameters
-        notifier_data = {
-            'preset_id': int(preset_id),
-            'preset_name': self._pedalboard.graph.settings['name'],
-            'stompboxes': []
-        }
-
-        # Loop over all stompboxes (nodes on pedalboard graph)
-        for sb in self._pedalboard.graph.nodes:
-            sb_data = {
-                'name': sb.name,
-                'parameters': []
-            }
-
-            # Loop over stombox's parameters
-            assert len(sb.parameters) == len(sb.effect.parameters)
-            for i, p in enumerate(sb.parameters):  # p is { 'NAME': { params } }
-                assert len(p.keys()) == 1
-                p_name = list(p.keys())[0]
-                param_data = {
-                    'name': p_name,
-                    'symbol': p[p_name]['Symbol'],
-                    'min': p[p_name]['Minimum'],
-                    'max': p[p_name]['Maximum'],
-                    'value': sb.effect.parameters[i]
-                }
-                sb_data['parameters'].append(param_data)
-
-            notifier_data['stompboxes'].append(sb_data)
-
-        self._log.debug("Sending JSON: " + json.dumps(notifier_data))
-        self._notifier.update("PRESET:" + json.dumps(notifier_data))
 
     def cb_preset(self, uri, msg=None):
         """Handle incoming /preset/<N> OSC message"""
